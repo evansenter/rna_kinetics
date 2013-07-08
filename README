@@ -1,0 +1,7 @@
+# From R, do the following after executing the make command to make the shared object library:
+
+> dyn.load("rnaeval_r.so")
+> .C("energy_of_struct_r", sequence = "GGGGGCCCCC", structure = "..........", energy = as.double(1))$energy
+[1] 0
+> .C("energy_of_struct_r", sequence = "GGGGGCCCCC", structure = "(((....)))", energy = as.double(1))$energy
+[1] -2.5
