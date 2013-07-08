@@ -1,3 +1,6 @@
+# You can just download this, and run from bash:
+./demo.sh
+
 # From R, do the following after executing the make command to make the shared object library:
 
 > dyn.load("rnaeval_r.so")
