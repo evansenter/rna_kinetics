@@ -1,17 +1,17 @@
 argv <- commandArgs(TRUE)
 
 if (length(argv) != 2) {
-  print("./Rscript serializer.r INPUT_STRUCTURES OUTPUT_FILENAME")
+  cat("./Rscript serializer.r INPUT_STRUCTURES OUTPUT_FILENAME\n")
   q("no")
 }
 
 if (is.na(file.info(argv[1])$size)) {
-  print(paste(argv[1], "doesn't appear to exist, cowering out."))
+  cat(paste(argv[1], "doesn't appear to exist, cowering out.\n"))
   q("no")
 }
 
 if (!is.na(file.info(argv[2])$size)) {
-  print(paste(argv[2], "is a file that already exists, cowering out."))
+  cat(paste(argv[2], "is a file that already exists, cowering out.\n"))
   q("no")
 }
 
