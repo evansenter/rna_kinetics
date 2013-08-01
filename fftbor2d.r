@@ -51,7 +51,7 @@
 # The (main) problem right now seems to be in the encoding
 
 library(Matrix)
-fftbor.data   <- "test_6.txt"
+fftbor.data   <- "sample_synthetic_seq.fa"
 seq.length    <- as.numeric(system(paste0("ruby -r vienna_rna -e 'p(RNA.from_fasta(\"", fftbor.data, "\").seq.length)'"), intern = T))
 xition.ncol   <- seq.length + 1
 fftbor.file   <- tempfile()
@@ -87,6 +87,13 @@ if (nrow(transition.list[transition.list$from == xition.ncol ^ 2 - 1 & transitio
 }
 
 transition.matrix <- sparseMatrix(i = transition.list$from, j = transition.list$to, x = transition.list$p, index1 = F)
+pruned.matrix     <- transition.matrix[-nrow(transition.matrix), -ncol(transition.matrix)]
+
+solve(diag(nrow(pruned.matrix)) - pruned.matrix) %*% as.matrix(rep(1, nrow(pruned.matrix)))
+
+# Error in solve(diag(nrow(pruned.matrix)) - pruned.matrix) : 
+#   cs_lu(A) failed: near-singular A (or out of memory)
+# Timing stopped at: 2.167 0.27 2.437
 
 # > example.matrix <- matrix(sapply(runif(100), function(x) ifelse(x < 0.8, 1e-10 * rnorm(1), x)), nrow = 10)
 # > summary(example.matrix)
@@ -134,3 +141,5 @@ transition.matrix <- sparseMatrix(i = transition.list$from, j = transition.list$
 #  [8,] -1.417469e+00  2.598047e+00 -1.930054e-10  1.526173e+00 -1.053696e+00
 #  [9,] -8.458402e-01  8.464282e-01 -1.830985e-10  8.997885e-01 -2.527490e-02
 # [10,]  1.578437e+00 -1.579534e+00 -1.217021e+00 -1.679110e+00  4.716592e-02
+# > condest(matrix(sapply(runif(100), function(x) ifelse(x < 0.9, runif(1) * 1e-10, x)), nrow = 10))$est
+# [1] 27567031425
