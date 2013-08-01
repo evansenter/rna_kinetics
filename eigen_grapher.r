@@ -1,3 +1,5 @@
+# If we change temperature here, it needs to be changed in the call to RNAeval as well.
+
 argv <- commandArgs(TRUE)
 
 if (!is.element(length(argv), 3:4)) {
