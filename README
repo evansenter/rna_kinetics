@@ -8,3 +8,5 @@
 [1] 0
 > .C("energy_of_struct_r", sequence = "GGGGGCCCCC", structure = "(((....)))", energy = as.double(1))$energy
 [1] -2.5
+
+    # File.read("../synthetic_seqs_with_few_structures.fa").chomp.split(/\n/)[1..-1].each_with_index.map { |seq, i| ["seq_%03d.fa" % i, RNA(seq)] }.map { |name, rna| File.open(name, ?w) { |file| file.write([rna.seq, rna.empty_str, rna.run(:fold).mfe_rna.str].join("\n")) } }
