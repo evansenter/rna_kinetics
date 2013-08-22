@@ -93,13 +93,4 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   mfpt.list[remap.to.parity.matrix(bp.dist) + 1]
 }
 
-synthetic.analysis <- sapply(sort(list.files(path = "synthetic_seq_files", pattern = "seq_*", full.names = T))[595:1000], function(file) {
-  mfpt <- mfpt.from.fa.using.fftbor2d(file)
-
-  print(file)
-  print(mfpt)
-
-  mfpt
-})
-
 mfpt.from.fa.using.fftbor2d(argv[1])
