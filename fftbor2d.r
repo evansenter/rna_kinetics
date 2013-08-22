@@ -51,22 +51,19 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   transition.list <- cbind(transition.list, apply(transition.list, 1, function(row) ifelse(row[1] == row[2], transition.stay.prob(row[1]), transition.move.prob(row[1], row[2]))))
   names(transition.list) <- c("from", "to", "p")
 
-  remap.to.parity.matrix     <- function(point) { (point + ifelse(even(bp.dist), 0, -1)) / 2 }
-  transition.list$from.remap <- sapply(transition.list$from, remap.to.parity.matrix)
-  transition.list$to.remap   <- sapply(transition.list$to,   remap.to.parity.matrix)
-  transition.list            <- transition.list[transition.list$p > 0,]
-  remap.matrix.size          <- max(transition.list$from.remap, transition.list$to.remap) + 1
+  transition.list <- transition.list[transition.list$p > 0,]
+  mapping         <- cbind(unique(transition.list$to), order(unique(transition.list$to)))
+  index.of        <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
 
   transition.matrix <- sparseMatrix(
-    i      = transition.list$from.remap, 
-    j      = transition.list$to.remap, 
+    i      = sapply(transition.list$from, index.of), 
+    j      = sapply(transition.list$to, index.of), 
     x      = transition.list$p, 
-    dims   = c(remap.matrix.size, remap.matrix.size), 
-    index1 = F
   )
+
   pruned.matrix <- transition.matrix[
-    -(remap.to.parity.matrix(xition.ncol * bp.dist) + 1), 
-    -(remap.to.parity.matrix(xition.ncol * bp.dist) + 1)
+    -index.of(xition.ncol * bp.dist), 
+    -index.of(xition.ncol * bp.dist) 
   ]
 
   # This check happens by definition of transition.stay.prob
@@ -90,16 +87,7 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   # }
 
   mfpt.list <- solve(diag(nrow(pruned.matrix)) - pruned.matrix) %*% as.matrix(rep(1, nrow(pruned.matrix)))
-  mfpt.list[remap.to.parity.matrix(bp.dist) + 1]
+  mfpt.list[index.of(bp.dist)]
 }
-
-synthetic.analysis <- sapply(sort(list.files(path = "synthetic_seq_files", pattern = "seq_*", full.names = T))[595:1000], function(file) {
-  mfpt <- mfpt.from.fa.using.fftbor2d(file)
-
-  print(file)
-  print(mfpt)
-
-  mfpt
-})
 
 mfpt.from.fa.using.fftbor2d(argv[1])
