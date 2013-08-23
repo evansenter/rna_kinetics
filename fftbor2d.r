@@ -14,8 +14,10 @@ if (is.na(file.info(argv[1])$size)) {
 
 library(Matrix)
 library(gtools)
+require(corpcor)
+library(rbenchmark)
 
-mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
+unpruned.transition.matrix <- function(fftbor.input) {
   seq.length    <- as.numeric(system(paste0("ruby -r vienna_rna -e 'p(RNA.from_fasta(\"", fftbor.input, "\").seq.length)'"), intern = T))
   bp.dist       <- as.numeric(system(paste0(
     "ruby -r vienna_rna -e 'p ViennaRna::Rna.bp_distance(*File.read(\"",
@@ -24,13 +26,20 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   ))
   xition.ncol   <- ceiling(seq.length / 2) * 2 + 1
   fftbor.file   <- tempfile()
-  write(system(paste("FFTbor2D -S -P 9", fftbor.input), intern = T), fftbor.file)
+  write(system(paste("FFTbor2D -R 75 -S -P 9", fftbor.input), intern = T), fftbor.file)
   fftbor.data   <- read.delim(fftbor.file, header = F, col.names = c("i", "j", "p", "ensemble"))
   fftbor.data   <- within(fftbor.data, ij <- i * xition.ncol + j)
-  shift.moves   <- function(x) {
+  fftbor.matrix <- sparseMatrix(
+    i      = fftbor.data$i, 
+    j      = fftbor.data$j, 
+    x      = fftbor.data$p, 
+    index1 = F
+  )
+
+  shift.moves <- function(x) {
     x + as.numeric(lapply(Map(function(x) x, Map(function(i) { (xition.ncol + 1i) * 1i ^ i }, 0:3)), function(x) Re(x) + Im(x)))
   }
-  valid.moves   <- function(x) { Filter(function(y) {
+  valid.moves <- function(x) { Filter(function(y) {
     y >= 0 & sum((c(floor(y / xition.ncol), y %% xition.ncol) - c(floor(x / xition.ncol), x %% xition.ncol)) ^ 2) == 2
   }, shift.moves(x)) }
 
@@ -54,18 +63,51 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   transition.list <- transition.list[transition.list$p > 0,]
   mapping         <- cbind(unique(transition.list$to), order(unique(transition.list$to)))
   index.of        <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
+  unindex.of      <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
 
-  transition.matrix <- sparseMatrix(
-    i      = sapply(transition.list$from, index.of), 
-    j      = sapply(transition.list$to, index.of), 
-    x      = transition.list$p, 
+  matrix.data <- {}
+
+  matrix.data$unpruned.transition.matrix <- sparseMatrix(
+    i = sapply(transition.list$from, index.of), 
+    j = sapply(transition.list$to, index.of), 
+    x = transition.list$p, 
   )
 
-  pruned.matrix <- transition.matrix[
-    -index.of(xition.ncol * bp.dist), 
-    -index.of(xition.ncol * bp.dist) 
+  matrix.data$index.mapper   <- index.of
+  matrix.data$index.unmapper <- unindex.of
+  matrix.data$bp.dist        <- bp.dist
+  matrix.data$xition.ncol    <- xition.ncol
+
+  matrix.data
+}
+
+transition.matrix.for.inversion <- function(matrix.data) {
+  pruned.matrix <- matrix.data$unpruned.transition.matrix[
+    -matrix.data$index.mapper(matrix.data$xition.ncol * matrix.data$bp.dist), 
+    -matrix.data$index.mapper(matrix.data$xition.ncol * matrix.data$bp.dist) 
   ]
 
+  matrix.data$inversion.matrix <- diag(nrow(pruned.matrix)) - pruned.matrix
+
+  matrix.data
+}
+
+visualize.transition.matrix.from.fa.file <- function(fftbor.input) {
+  matrix.data <- transition.matrix.for.inversion(unpruned.transition.matrix(fftbor.input))
+
+  quartz("Heatmap", 6, 6)
+  image(
+    x    = 1:dim(matrix.data)[[1]], 
+    y    = 1:dim(matrix.data)[[2]], 
+    z    = as.matrix(matrix.data), 
+    col  = rev(gray(0:64 / 64)),
+    xlab = "Remapped column index",
+    ylab = "Remapped row index"
+  )
+  title(paste("Transition matrix for", basename(fftbor.input)))
+}
+
+mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   # This check happens by definition of transition.stay.prob
   # if (!all(sapply(apply(transition.matrix, 1, sum), function(x) { x %in% 0:1 }))) {
   #   warning("One or more row-sums are not 0 or 1:")
@@ -86,8 +128,17 @@ mfpt.from.fa.using.fftbor2d <- function(fftbor.input) {
   #   warning("The matrix doesn't satisfy the parity condition.")
   # }
 
-  mfpt.list <- solve(diag(nrow(pruned.matrix)) - pruned.matrix) %*% as.matrix(rep(1, nrow(pruned.matrix)))
-  mfpt.list[index.of(bp.dist)]
+  matrix.data      <- transition.matrix.for.inversion(unpruned.transition.matrix(fftbor.input))
+  
+  pseudo.mfpt.list <- pseudoinverse(matrix.data$inversion.matrix) %*% as.matrix(rep(1, nrow(matrix.data$inversion.matrix)))
+  print(pseudo.mfpt.list[matrix.data$index.mapper(matrix.data$bp.dist)])
+
+  mfpt.list        <- solve(matrix.data$inversion.matrix) %*% as.matrix(rep(1, nrow(matrix.data$inversion.matrix)))
+  print(mfpt.list[matrix.data$index.mapper(matrix.data$bp.dist)])
 }
 
-mfpt.from.fa.using.fftbor2d(argv[1])
+benchmark(
+  mfpt.from.fa.using.fftbor2d(argv[1]),
+  replications = 1,
+  columns      = c("elapsed")
+)
