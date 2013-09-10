@@ -1,4 +1,4 @@
-# THIS CODE NEEDS TO HANDLE THE TRIANGLE INEQUALITY (can't move NW of the principal diagonal)
+# Finish implementing the triangle inequality
 
 argv <- commandArgs(TRUE)
 
@@ -33,15 +33,23 @@ unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
 
   if (missing(fftbor2d.output)) {
     fftbor2d.output <- tempfile()
-    write(system(paste("FFTbor2D_185 -S -E /usr/local/bin/rna_turner_1.8.5.par", fa.input), intern = T), fftbor2d.output)
+    write(system(paste("FFTbor2D -S -E /Users/evansenter/Source/fftbor/rna_turner_2.1.2.par", fa.input), intern = T), fftbor2d.output)
   }
 
   fftbor.data   <- read.delim(fftbor2d.output, header = F, col.names = c("i", "j", "p", "ensemble"))
   if (nrow(fftbor.data[fftbor.data$i == bp.dist & fftbor.data$j == 0,]) == 0) {
     fftbor.data <- rbind(fftbor.data, c(bp.dist, 0, 0, 0))
   }
+  
+  two.d.to.rmoi <- function(i, j) {
+    i * xition.ncol + j
+  }
+  
+  rmoi.to.two.d <- function(ij) {
+    c(floor(ij / xition.ncol), ij %% xition.ncol)
+  }
 
-  fftbor.data <- within(fftbor.data, ij <- i * xition.ncol + j)
+  fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
   fftbor.data <- fftbor.data[order(fftbor.data$ij),]
   
 
@@ -57,8 +65,8 @@ unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
   }
   valid.moves <- function(x) { Filter(function(y) {
     y >= 0 & 
-    sum(c(floor(y / xition.ncol), y %% xition.ncol)) >= bp.dist &
-    sum((c(floor(y / xition.ncol), y %% xition.ncol) - c(floor(x / xition.ncol), x %% xition.ncol)) ^ 2) == 2
+    sum(rmoi.to.two.d(y)) >= bp.dist &
+    sum((rmoi.to.two.d(y) - rmoi.to.two.d(x)) ^ 2) == 2
   }, shift.moves(x)) }
 
   transition.list            <- as.data.frame(do.call(rbind, apply(fftbor.data[c("ij", "p")], 1, function(row) do.call(rbind, lapply(c(valid.moves(row[1]), row[1]), function(move) c(row[1], move))))))
