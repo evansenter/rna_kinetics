@@ -76,7 +76,7 @@ unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
     ifelse(
       nrow(fftbor.data[fftbor.data$ij == to,]) == 0, 
       0, 
-      min(1, fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p) / length(valid.moves(from))
+      min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p) * (length(valid.moves(from)) / length(valid.moves(to)))) / length(valid.moves(from))
     )
   }
   transition.stay.prob <- function(from) {
