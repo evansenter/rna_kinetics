@@ -18,11 +18,12 @@ if (length(argv) == 2 & is.na(file.info(argv[2])$size)) {
 }
 
 library(Matrix)
-library(gtools)
 require(corpcor)
-library(rbenchmark)
+# library(gtools)
+# library(rbenchmark)
 
 unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
+  rt            <- 0.0019872370936902486 * 310.15 # kcal / mol / K
   seq.length    <- as.numeric(system(paste0("ruby -r vienna_rna -e 'p(RNA.from_fasta(\"", fa.input, "\").seq.length)'"), intern = T))
   xition.ncol   <- seq.length + 1
   bp.dist       <- as.numeric(system(paste0(
@@ -37,8 +38,13 @@ unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
   }
 
   fftbor.data   <- read.delim(fftbor2d.output, header = F, col.names = c("i", "j", "p", "ensemble"))
+  
   if (nrow(fftbor.data[fftbor.data$i == bp.dist & fftbor.data$j == 0,]) == 0) {
-    fftbor.data <- rbind(fftbor.data, c(bp.dist, 0, 0, 0))
+    fftbor.data <- rbind(fftbor.data, c(bp.dist, 0, 1e-9, -rt * log(1e-9)))
+  }
+  
+  if (nrow(fftbor.data[fftbor.data$i == 0 & fftbor.data$j == bp.dist,]) == 0) {
+    fftbor.data <- rbind(fftbor.data, c(0, bp.dist, 1e-9, -rt * log(1e-9)))
   }
   
   two.d.to.rmoi <- function(i, j) {
@@ -51,7 +57,6 @@ unpruned.transition.matrix <- function(fa.input, fftbor2d.output) {
 
   fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
   fftbor.data <- fftbor.data[order(fftbor.data$ij),]
-  
 
   fftbor.matrix <- sparseMatrix(
     i      = fftbor.data$i, 
