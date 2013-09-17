@@ -1,17 +1,12 @@
 argv <- commandArgs(TRUE)
 
-if (!is.element(length(argv), 1:2)) {
-  cat("./Rscript fftbor2d.r INPUT_FA_FILE [INPUT_FFTBOR2D_RUN]\n")
+if (length(argv) == 1) {
+  cat("./Rscript fftbor2d.r INPUT_FA_FILE\n")
   q("no")
 }
 
 if (is.na(file.info(argv[1])$size)) {
   cat(paste(argv[1], "doesn't appear to exist, cowering out.\n"))
-  q("no")
-}
-
-if (length(argv) == 2 & is.na(file.info(argv[2])$size)) {
-  cat(paste(argv[2], "doesn't appear to exist, cowering out.\n"))
   q("no")
 }
 
