@@ -1,6 +1,6 @@
 argv <- commandArgs(TRUE)
 
-if (length(argv) == 1) {
+if (length(argv) != 1) {
   cat("./Rscript fftbor2d.r INPUT_FA_FILE\n")
   q("no")
 }
@@ -39,11 +39,13 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   }
   
   if (nrow(fftbor.data[fftbor.data$i == bp.dist & fftbor.data$j == 0,]) == 0) {
-    cat("p(bp.dist, 0) = 0!\n")
+    cat("p(bp.dist, 0) = 0\nINFINITY\n")
+    q("no")
   }
   
   if (nrow(fftbor.data[fftbor.data$i == 0 & fftbor.data$j == bp.dist,]) == 0) {
-    print("p(0, bp.dist) = 0!\n")
+    print("p(0, bp.dist) = 0\nINFINITY\n")
+    q("no")
   }
   
   two.d.to.rmoi <- function(i, j) {
