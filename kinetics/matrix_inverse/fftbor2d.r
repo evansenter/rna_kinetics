@@ -1,13 +1,21 @@
 argv <- commandArgs(TRUE)
 
-if (length(argv) != 1) {
+if (!is.element(length(argv), c(1, 3))) {
   cat("./Rscript fftbor2d.r INPUT_FA_FILE\n")
+  cat("./Rscript fftbor2d.r SEQUENCE STR_1 STR_2\n")
   q("no")
 }
 
-if (is.na(file.info(argv[1])$size)) {
+if (length(argv) == 1 & is.na(file.info(argv[1])$size)) {
   cat(paste(argv[1], "doesn't appear to exist, cowering out.\n"))
   q("no")
+}
+
+if (length(argv) == 1) {
+  fa.input <- argv[1]
+} else if (length(argv) == 3) {
+  fa.input <- tempfile()
+  write(do.call(paste, c(as.list(argv), sep = "\n")), fa.input)
 }
 
 suppressMessages(library(Matrix))
@@ -110,4 +118,4 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   cat("\n")
 }
 
-mfpt.from.fa.using.fftbor2d(argv[1])
+mfpt.from.fa.using.fftbor2d(fa.input)
