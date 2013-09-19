@@ -11,6 +11,8 @@ if (length(argv) == 1 & is.na(file.info(argv[1])$size)) {
   q("no")
 }
 
+# Easiest way to homogenize the interface to the actual code, if data was provided at the command line rather
+# than via a file, just make a tempfile and put it in there.
 if (length(argv) == 1) {
   fa.input <- argv[1]
 } else if (length(argv) == 3) {
@@ -18,23 +20,26 @@ if (length(argv) == 1) {
   write(do.call(paste, c(as.list(argv), sep = "\n")), fa.input)
 }
 
-suppressMessages(library(Matrix))
-suppressMessages(require(corpcor))
+# Matrix gives us sparseMatrix, corpcor gives us pseudoinverse.
+require(Matrix,  quietly = T)
+require(corpcor, quietly = T)
 
 mfpt.from.fa.using.fftbor2d <- function(fa.input) {
-  rt            <- 0.0019872370936902486 * 310.15 # kcal / mol / K
-  seq.length    <- as.numeric(system(paste0("ruby -r vienna_rna -e 'p(RNA.from_fasta(\"", fa.input, "\").seq.length)'"), intern = T))
+  fa.data <- suppressWarnings(readLines(fa.input))
+  fa.data <- fa.data[seq(length(fa.data) - 2, length(fa.data))]
+  
+  seq.length    <- nchar(fa.data[1])
   xition.ncol   <- seq.length + 1
-  bp.dist       <- as.numeric(system(paste0(
-    "ruby -r vienna_rna -e 'p ViennaRna::Rna.bp_distance(*File.read(\"",
-    fa.input,
-    "\").chomp.split(/\\n/)[-2..-1])'"), intern = T
-  ))
 
   fftbor2d.output <- tempfile()
-  write(system(paste("FFTbor2D -S -E ~/bin/rna_turner_2.1.2.par", fa.input), intern = T), fftbor2d.output)
-
-  fftbor.data   <- read.delim(fftbor2d.output, header = F, col.names = c("i", "j", "p", "ensemble"))
+  write(system(paste("FFTbor2D -E ~/bin/rna_turner_2.1.2.par", fa.input), intern = T), fftbor2d.output)
+  
+  bp.dist       <- read.csv(text = readLines(fftbor2d.output, 4)[4], header = F)[1, 1]
+  fftbor.data   <- read.delim(
+    text = do.call(paste, c(as.list(readLines(fftbor2d.output)[-1:-5]), sep = "\n")), 
+    header = F, 
+    col.names = c("i", "j", "p", "ensemble")
+  )
   
   if (bp.dist <= 0) {
     cat("BP distance between the two structures (bp.dist) looks weird. Quitting.\n")
@@ -66,13 +71,6 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
 
   fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
   fftbor.data <- fftbor.data[order(fftbor.data$ij),]
-
-  fftbor.matrix <- sparseMatrix(
-    i      = fftbor.data$i, 
-    j      = fftbor.data$j, 
-    x      = fftbor.data$p, 
-    index1 = F
-  )
   
   valid.moves <- function(x) { fftbor.data$ij[fftbor.data$ij != x] }
 
