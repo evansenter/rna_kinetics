@@ -21,7 +21,6 @@ if (length(argv) == 1) {
 }
 
 # Matrix gives us sparseMatrix, corpcor gives us pseudoinverse.
-require(Matrix,  quietly = T)
 require(corpcor, quietly = T)
 
 mfpt.from.fa.using.fftbor2d <- function(fa.input) {
@@ -71,40 +70,30 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
 
   fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
   fftbor.data <- fftbor.data[order(fftbor.data$ij),]
+  move.size   <- nrow(fftbor.data) - 1
   
   valid.moves <- function(x) { fftbor.data$ij[fftbor.data$ij != x] }
 
-  transition.list <- expand.grid(fftbor.data$ij, fftbor.data$ij)
-  row.names(transition.list) <- NULL
-
   transition.move.prob <- function(from, to) {
-    min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p)) / length(valid.moves(from))
-  }
-  transition.stay.prob <- function(from) {
-    1 - Reduce(function(sum, x) sum + transition.move.prob(from, x), valid.moves(from), 0)
+    min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p)) / move.size
   }
 
-  transition.list <- cbind(transition.list, apply(transition.list, 1, function(row) ifelse(row[1] == row[2], transition.stay.prob(row[1]), transition.move.prob(row[1], row[2]))))
-  names(transition.list) <- c("from", "to", "p")
+  transition.list            <- expand.grid(fftbor.data$ij, fftbor.data$ij)
+  transition.list            <- cbind(transition.list, rep(NA, nrow(transition.list)))
+  names(transition.list)     <- c("from", "to", "p")
   
-  uniq.transitions <- unique(c(transition.list$from, transition.list$to))
-  mapping          <- cbind(uniq.transitions, order(uniq.transitions))
-  index.of         <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
-  unindex.of       <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
+  transition.list[transition.list$from != transition.list$to,]$p <- apply(transition.list[transition.list$from != transition.list$to,], 1, function(row) transition.move.prob(row[1], row[2]))
+  
+  transition.list[transition.list$from == transition.list$to,]$p <- sapply(fftbor.data$ij, function(index) 1 - sum(transition.list[transition.list$from == index & transition.list$to != index,]$p))
+  
+  mapping    <- cbind(fftbor.data$ij, 1:nrow(fftbor.data))
+  index.of   <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
+  unindex.of <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
 
-  # ----------------------------------------------------------------------------------
-  # index.of RETURNS A 1-INDEXED LIST OF MAPPINGS FROM THE 0-INDEXED TRANSITION MATRIX
-  # ----------------------------------------------------------------------------------
-  unpruned.transition.matrix <- sparseMatrix(
-    i      = sapply(transition.list$from, index.of), 
-    j      = sapply(transition.list$to, index.of), 
-    x      = transition.list$p
-  )
-  
-  pruned.matrix <- unpruned.transition.matrix[
-    -index.of(xition.ncol * bp.dist), 
-    -index.of(xition.ncol * bp.dist) 
-  ]
+  # --------------------------------------------------------------------------------------
+  # index.of RETURNS A 1-INDEXED LIST OF MAPPINGS FROM THE 0-INDEXED TRANSITION DATA FRAME
+  # --------------------------------------------------------------------------------------
+  pruned.matrix <- matrix(data = transition.list$p, nrow = nrow(fftbor.data), ncol = nrow(fftbor.data))[-index.of(xition.ncol * bp.dist), -index.of(xition.ncol * bp.dist)]
   
   inversion.matrix <- diag(nrow(pruned.matrix)) - pruned.matrix
   pseudo.mfpt.list <- pseudoinverse(inversion.matrix) %*% as.matrix(rep(1, nrow(inversion.matrix)))
