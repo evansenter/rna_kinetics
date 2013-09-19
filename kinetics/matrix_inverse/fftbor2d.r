@@ -31,34 +31,15 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   xition.ncol   <- seq.length + 1
 
   fftbor2d.output <- tempfile()
-  write(system(paste("FFTbor2D -E ~/bin/rna_turner_2.1.2.par", fa.input), intern = T), fftbor2d.output)
+  write(system(paste0("FFTbor2D -X -E ~/bin/rna_turner_2.1.2.par \"", fa.input, "\""), intern = T), fftbor2d.output)
   
-  bp.dist       <- read.csv(text = readLines(fftbor2d.output, 4)[4], header = F)[1, 1]
-  fftbor.data   <- read.delim(
+  bp.dist         <- read.csv(text = readLines(fftbor2d.output, 4)[4], header = F)[1, 1]
+  transition.list <- read.delim(
     text = do.call(paste, c(as.list(readLines(fftbor2d.output)[-1:-5]), sep = "\n")), 
     header = F, 
-    col.names = c("i", "j", "p", "ensemble")
+    col.names = c("from", "to", "p")
   )
-  
-  if (bp.dist <= 0) {
-    cat("BP distance between the two structures (bp.dist) looks weird. Quitting.\n")
-    q("no")
-  }
-  
-  if (nrow(fftbor.data) <= 0) {
-    cat("FFTbor data in fftbor.data looks weird. Quitting.\n")
-    q("no")
-  }
-  
-  if (nrow(fftbor.data[fftbor.data$i == bp.dist & fftbor.data$j == 0,]) == 0) {
-    cat("p(bp.dist, 0) = 0\nINFINITY\n")
-    q("no")
-  }
-  
-  if (nrow(fftbor.data[fftbor.data$i == 0 & fftbor.data$j == bp.dist,]) == 0) {
-    print("p(0, bp.dist) = 0\nINFINITY\n")
-    q("no")
-  }
+  num.moves       <- length(sort(unique(transition.list$from)))
   
   two.d.to.rmoi <- function(i, j) {
     i * xition.ncol + j
@@ -67,33 +48,54 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   rmoi.to.two.d <- function(ij) {
     c(floor(ij / xition.ncol), ij %% xition.ncol)
   }
-
-  fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
-  fftbor.data <- fftbor.data[order(fftbor.data$ij),]
-  move.size   <- nrow(fftbor.data) - 1
   
-  valid.moves <- function(x) { fftbor.data$ij[fftbor.data$ij != x] }
-
-  transition.move.prob <- function(from, to) {
-    min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p)) / move.size
+  if (bp.dist <= 0) {
+    cat("BP distance between the two structures (bp.dist) looks weird. Quitting.\n")
+    q("no")
   }
+  
+  if (nrow(transition.list) <= 0) {
+    cat("FFTbor data in fftbor.data looks weird. Quitting.\n")
+    q("no")
+  }
+  
+  if (!any(transition.list[transition.list$from == two.d.to.rmoi(0, bp.dist),]$p > 0)) {
+    cat("p(0, bp.dist) = 0\nINFINITY\n")
+    q("no")
+  }
+  
+  if (!any(transition.list[transition.list$from == two.d.to.rmoi(bp.dist, 0),]$p > 0)) {
+    cat("p(bp.dist, 0) = 0\nINFINITY\n")
+    q("no")
+  }  
 
-  transition.list            <- expand.grid(fftbor.data$ij, fftbor.data$ij)
-  transition.list            <- cbind(transition.list, rep(NA, nrow(transition.list)))
-  names(transition.list)     <- c("from", "to", "p")
+  # 
+  # fftbor.data <- within(fftbor.data, ij <- two.d.to.rmoi(i, j))
+  # fftbor.data <- fftbor.data[order(fftbor.data$ij),]
+  # move.size   <- nrow(fftbor.data) - 1
+  # 
+  # valid.moves <- function(x) { fftbor.data$ij[fftbor.data$ij != x] }
+  # 
+  # transition.move.prob <- function(from, to) {
+  #   min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p)) / move.size
+  # }
+  # 
+  # transition.list            <- expand.grid(fftbor.data$ij, fftbor.data$ij)
+  # transition.list            <- cbind(transition.list, rep(NA, nrow(transition.list)))
+  # names(transition.list)     <- c("from", "to", "p")
+  # 
+  # transition.list[transition.list$from != transition.list$to,]$p <- apply(transition.list[transition.list$from != transition.list$to,], 1, function(row) transition.move.prob(row[1], row[2]))
+  # 
+  # transition.list[transition.list$from == transition.list$to,]$p <- sapply(fftbor.data$ij, function(index) 1 - sum(transition.list[transition.list$from == index & transition.list$to != index,]$p))
   
-  transition.list[transition.list$from != transition.list$to,]$p <- apply(transition.list[transition.list$from != transition.list$to,], 1, function(row) transition.move.prob(row[1], row[2]))
-  
-  transition.list[transition.list$from == transition.list$to,]$p <- sapply(fftbor.data$ij, function(index) 1 - sum(transition.list[transition.list$from == index & transition.list$to != index,]$p))
-  
-  mapping    <- cbind(fftbor.data$ij, 1:nrow(fftbor.data))
+  mapping    <- cbind(sort(unique(transition.list$from)), 1:num.moves)
   index.of   <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
   unindex.of <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
 
   # --------------------------------------------------------------------------------------
   # index.of RETURNS A 1-INDEXED LIST OF MAPPINGS FROM THE 0-INDEXED TRANSITION DATA FRAME
   # --------------------------------------------------------------------------------------
-  pruned.matrix <- matrix(data = transition.list$p, nrow = nrow(fftbor.data), ncol = nrow(fftbor.data))[-index.of(xition.ncol * bp.dist), -index.of(xition.ncol * bp.dist)]
+  pruned.matrix <- matrix(data = transition.list$p, nrow = num.moves, ncol = num.moves)[-index.of(xition.ncol * bp.dist), -index.of(xition.ncol * bp.dist)]
   
   inversion.matrix <- diag(nrow(pruned.matrix)) - pruned.matrix
   pseudo.mfpt.list <- pseudoinverse(inversion.matrix) %*% as.matrix(rep(1, nrow(inversion.matrix)))
