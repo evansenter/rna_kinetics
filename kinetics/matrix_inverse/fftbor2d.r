@@ -20,9 +20,6 @@ if (length(argv) == 1) {
   write(do.call(paste, c(as.list(argv), sep = "\n")), fa.input)
 }
 
-# Matrix gives us sparseMatrix, corpcor gives us pseudoinverse.
-require(corpcor, quietly = T)
-
 mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   fa.data    <- suppressWarnings(readLines(fa.input))
   fa.data    <- fa.data[seq(length(fa.data) - 2, length(fa.data))]
@@ -86,7 +83,6 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   pruned.matrix <- matrix(data = transition.list$p, nrow = num.moves, ncol = num.moves)[-index.of(end.state), -index.of(end.state)]
   
   inversion.matrix <- diag(nrow(pruned.matrix)) - pruned.matrix
-  pseudo.mfpt.list <- pseudoinverse(inversion.matrix) %*% as.matrix(rep(1, nrow(inversion.matrix)))
   mfpt.list        <- solve(inversion.matrix) %*% as.matrix(rep(1, nrow(inversion.matrix)))
   
   cat(mfpt.list[index.of(end.state)])
