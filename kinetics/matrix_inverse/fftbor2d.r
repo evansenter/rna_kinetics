@@ -71,11 +71,12 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
 
   transition.list[transition.list$from == transition.list$to,]$p <- sapply(fftbor.data$ij, function(index) 1 - sum(transition.list[transition.list$from == index & transition.list$to != index,]$p))
   
-  end.state  <- fftbor.data[fftbor.data$j == 0,]$ij
-  num.moves  <- sqrt(nrow(transition.list))
-  mapping    <- cbind(sort(unique(transition.list$from)), 1:num.moves)
-  index.of   <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
-  unindex.of <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
+  start.state <- fftbor.data[fftbor.data$i == 0,]$ij
+  end.state   <- fftbor.data[fftbor.data$j == 0,]$ij
+  num.moves   <- sqrt(nrow(transition.list))
+  mapping     <- cbind(sort(unique(transition.list$from)), 1:num.moves)
+  index.of    <- function(unconsolidated) { mapping[mapping[,1] == unconsolidated][2] }
+  unindex.of  <- function(consolidated) { mapping[mapping[,2] == consolidated][1] }
 
   # ----------------------------------------------------------------------------------------------------------------
   # index.of RETURNS A 1-INDEXED LIST OF MAPPINGS FROM THE 0-INDEXED TRANSITION DATA FRAME (WHICH IS COLUMN ORDERED)
@@ -85,7 +86,7 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
   inversion.matrix <- diag(nrow(pruned.matrix)) - pruned.matrix
   mfpt.list        <- solve(inversion.matrix) %*% as.matrix(rep(1, nrow(inversion.matrix)))
   
-  cat(mfpt.list[index.of(end.state)])
+  cat(mfpt.list[index.of(start.state)])
   cat("\n")
 }
 
