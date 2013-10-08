@@ -33,6 +33,13 @@ int main(int argc, char* argv[]) {
   p = (double*)malloc(line_count * sizeof(double));
   
   populate_arrays(argv[1], k, l, p);
+  
+  #if DEBUG
+    printf("Input data:\n");
+    for (i = 0; i < line_count; ++i) {
+      printf("%d\t%d\t%.8f\n", k[i], l[i], p[i]);
+    }
+  #endif
     
   transition_matrix = convertEnergyGridToTransitionMatrix(p, line_count);
   
