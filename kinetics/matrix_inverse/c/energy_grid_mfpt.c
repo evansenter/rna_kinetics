@@ -14,8 +14,10 @@
   extern void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
   extern void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
 #endif
+  
+extern double RT;
 
-double** convertEnergyGridToTransitionMatrix(double* p, int length) {
+double** convertEnergyGridToTransitionMatrix(double* p, int length, double (*transitionRate)(double, double, int)) {
   int i, j;
   double rowSum;
   double** transitionProbabilities = (double**)malloc(length * sizeof(double*));
@@ -27,12 +29,8 @@ double** convertEnergyGridToTransitionMatrix(double* p, int length) {
       
     for (j = 0; j < length; ++j) {
       if (i != j) {
-        transitionProbabilities[i][j] = MIN(
-          1., 
-          p[j] / p[i]
-        ) / (length - 1);
-        
-        rowSum += transitionProbabilities[i][j];
+        transitionProbabilities[i][j] = (*transitionRate)(p[i], p[j], length - 1);
+        rowSum                       += transitionProbabilities[i][j];
       }
     }
     
@@ -135,4 +133,12 @@ void inverse(double* A, int N) {
 
   free(IPIV);
   free(WORK);
+}
+
+double transitionRateFromProbabilities(double from, double to, int validStates) {
+  return MIN(1., to / from) / validStates;
+}
+
+double transitionRateFromEnergies(double from, double to, int validStates) {
+  return MIN(1, exp(-1 / RT) + exp(to - from)) / validStates;
 }

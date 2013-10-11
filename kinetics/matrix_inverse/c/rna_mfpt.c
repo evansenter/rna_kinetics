@@ -8,9 +8,10 @@
 #define DEBUG 0
 
 short ENERGY_BASED, TRANSITION_MATRIX_INPUT;
+double RT = 1e-3 * 1.9872041 * (273.15 + 37);
 
 int main(int argc, char* argv[]) {
-  unsigned long line_count;
+  unsigned long line_count, row_length;
   int i, j;
   int* k;
   int* l;
@@ -39,26 +40,54 @@ int main(int argc, char* argv[]) {
       printf("%d\t%d\t%.8f\n", k[i], l[i], p[i]);
     }
   #endif
-    
-  transition_matrix = convertEnergyGridToTransitionMatrix(p, line_count);
   
-  #if DEBUG
-    printf("Transition matrix:\n");
-    printf("i\tj\t(x, y)\t(a, b)\tp((x, y) -> (a, b))\n");
-  
+  if (TRANSITION_MATRIX_INPUT) {
+    row_length = 0;
     for (i = 0; i < line_count; ++i) {
-      for (j = 0; j < line_count; ++j) {
-        printf("%d\t%d\t(%d, %d)\t=>\t(%d, %d)\t%.8f\n", i, j, k[i], l[i], k[j], l[j], transition_matrix[i][j]);
-      }
-    
-      printf("\n");
+      row_length = k[i] > row_length ? k[i] : row_length;
+      row_length = l[i] > row_length ? l[i] : row_length;
     }
-  #endif
+    row_length++;
+    
+    transition_matrix = (double**)malloc(row_length * sizeof(double*));
+    for (i = 0; i < row_length + 1; ++i) {
+      transition_matrix[i] = (double*)calloc(row_length, sizeof(double));
+    }
+    
+    for (i = 0; i < line_count; ++i) {
+      transition_matrix[k[i]][l[i]] = p[i];
+    }
+    
+    #if DEBUG
+      printf("Transition matrix:\n");
+      printf("(x)\t(y)\tp(x -> y)\n");
+      
+      for (i = 0; i < line_count; ++i) {
+        printf("(%d)\t=>\t(%d)\t%.8f\n", k[i], l[i], transition_matrix[k[i]][l[i]]);
+      }
+    #endif
+  } else {
+    row_length = line_count;
+    transition_matrix = convertEnergyGridToTransitionMatrix(p, row_length, &transitionRateFromProbabilities);
+    
+    #if DEBUG
+      printf("Transition matrix:\n");
+      printf("i\tj\t(x, y)\t(a, b)\tp((x, y) -> (a, b))\n");
+
+      for (i = 0; i < line_count; ++i) {
+        for (j = 0; j < line_count; ++j) {
+          printf("%d\t%d\t(%d, %d)\t=>\t(%d, %d)\t%.8f\n", i, j, k[i], l[i], k[j], l[j], transition_matrix[i][j]);
+        }
+  
+        printf("\n");
+      }
+    #endif
+  }
   
   #if DEBUG
-    mfpt = computeMFPT(k, l, transition_matrix, line_count, 1);
+    mfpt = computeMFPT(k, l, transition_matrix, row_length, 1);
   #else
-    mfpt = computeMFPT(k, l, transition_matrix, line_count, 0);
+    mfpt = computeMFPT(k, l, transition_matrix, row_length, 0);
   #endif
 
   printf("%.8f\n", mfpt);
@@ -148,7 +177,9 @@ void usage() {
 
   fprintf(stderr, "Options include the following:\n");
   fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, p_b - p_a) / n) rather than (min(1, p_b / p_a) / n)\n");
-  fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n");
+  fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n\n");
+  
+  fprintf(stderr, "Program returns -1 (resp. -2) if the start state (resp. end state) probability is 0. Otherwise returns the MFPT as predicted by matrix inversion.\n");
   
   exit(0);
 }
