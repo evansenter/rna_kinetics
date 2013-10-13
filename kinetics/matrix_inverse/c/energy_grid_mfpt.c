@@ -140,5 +140,5 @@ double transitionRateFromProbabilities(double from, double to, int validStates) 
 }
 
 double transitionRateFromEnergies(double from, double to, int validStates) {
-  return MIN(1, exp(-1 / RT) + exp(to - from)) / validStates;
+  return MIN(1, exp(-(to - from) / RT)) / validStates;
 }
