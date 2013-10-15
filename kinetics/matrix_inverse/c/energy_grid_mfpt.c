@@ -9,6 +9,9 @@
   extern "C" {
     void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
     void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);  
+    int sgelss_(integer *m, integer *n, integer *nrhs, real *a, 
+    	integer *lda, real *b, integer *ldb, real *s, real *rcond, integer *
+    	rank, real *work, integer *lwork, integer *info);
   }
 #else
   extern void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
@@ -112,6 +115,10 @@ double computeMFPT(int* k, int* l, double **transitionProbabilities, int length,
     for (j = 0; j < inversionMatrixRowLength; ++j) {
       mfpt[i] += inversionMatrix[i * inversionMatrixRowLength + j];
     }
+    
+    if (debug) {
+      printf("MFPT %d\t%f\n", i, mfpt[i]);
+    }
   }
     
   mfptFromStart = mfpt[startIndex];
@@ -133,6 +140,10 @@ void inverse(double* A, int N) {
 
   free(IPIV);
   free(WORK);
+}
+
+void pseudoinverse(double* rowMatrix, int size) {
+  
 }
 
 double transitionRateFromProbabilities(double from, double to, int validStates) {

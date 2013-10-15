@@ -21,9 +21,9 @@ if (length(argv) == 1) {
 }
 
 mfpt.from.fa.using.fftbor2d <- function(fa.input) {
+  rt         <- 1e-3 * 1.9872041 * (273.15 + 37)
   fa.data    <- suppressWarnings(readLines(fa.input))
   fa.data    <- fa.data[seq(length(fa.data) - 2, length(fa.data))]
-  seq.length <- nchar(fa.data[1])
 
   fftbor2d.output <- tempfile()
   write(system(paste0("FFTbor2D -E ~/bin/rna_turner1999.par \"", fa.input, "\""), intern = T), fftbor2d.output)
@@ -61,6 +61,10 @@ mfpt.from.fa.using.fftbor2d <- function(fa.input) {
 
   transition.move.prob <- function(from, to) {
     min(1, (fftbor.data[fftbor.data$ij == to,]$p / fftbor.data[fftbor.data$ij == from,]$p)) / move.size
+  }
+  
+  energy.move.prob <- function(from, to) {
+    min(1, exp(-(fftbor.data[fftbor.data$ij == to,]$p - fftbor.data[fftbor.data$ij == from,]$p) / rt)) / move.size
   }
 
   transition.list            <- expand.grid(fftbor.data$ij, fftbor.data$ij)

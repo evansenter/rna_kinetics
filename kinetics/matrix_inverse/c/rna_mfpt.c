@@ -5,7 +5,8 @@
 #include "rna_mfpt.h"
 #include "energy_grid_mfpt.h"
 
-#define DEBUG 0
+#define DEBUG 1
+#define HEAVY_DEBUG (DEBUG && 0)
 
 short ENERGY_BASED, TRANSITION_MATRIX_INPUT;
 double RT = 1e-3 * 1.9872041 * (273.15 + 37);
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
       transition_matrix[k[i]][l[i]] = p[i];
     }
     
-    #if DEBUG
+    #if HEAVY_DEBUG
       printf("Transition matrix:\n");
       printf("(x)\t(y)\tp(x -> y)\n");
       
@@ -70,7 +71,7 @@ int main(int argc, char* argv[]) {
     row_length = line_count;
     transition_matrix = convertEnergyGridToTransitionMatrix(p, row_length, &transitionRateFromProbabilities);
     
-    #if DEBUG
+    #if HEAVY_DEBUG
       printf("Transition matrix:\n");
       printf("i\tj\t(x, y)\t(a, b)\tp((x, y) -> (a, b))\n");
 
@@ -84,7 +85,7 @@ int main(int argc, char* argv[]) {
     #endif
   }
   
-  #if DEBUG
+  #if HEAVY_DEBUG
     mfpt = computeMFPT(k, l, transition_matrix, row_length, 1);
   #else
     mfpt = computeMFPT(k, l, transition_matrix, row_length, 0);
