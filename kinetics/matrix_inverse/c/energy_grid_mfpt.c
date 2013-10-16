@@ -4,21 +4,22 @@
 #include "energy_grid_mfpt.h"
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define SMLSIZ 25
 
 #ifdef __cplusplus
   extern "C" {
     void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
     void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);  
-    int sgelss_(integer *m, integer *n, integer *nrhs, real *a, 
-    	integer *lda, real *b, integer *ldb, real *s, real *rcond, integer *
-    	rank, real *work, integer *lwork, integer *info);
+    int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
   }
 #else
   extern void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
   extern void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
+  extern int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
 #endif
   
-extern double RT;
+double RT = 1e-3 * 1.9872041 * (273.15 + 37);
 
 double** convertEnergyGridToTransitionMatrix(double* p, int length, double (*transitionRate)(double, double, int)) {
   int i, j;
@@ -43,7 +44,7 @@ double** convertEnergyGridToTransitionMatrix(double* p, int length, double (*tra
   return transitionProbabilities;
 }
 
-double computeMFPT(int* k, int* l, double **transitionProbabilities, int length, int debug) {
+double computeMFPT(int* k, int* l, double **transitionProbabilities, int length, double* (*invert)(double*, int, int), int debug) {
   int i, j, x, y, startIndex, endIndex, inversionMatrixRowLength = length - 1;
   double mfptFromStart;
   
@@ -109,7 +110,7 @@ double computeMFPT(int* k, int* l, double **transitionProbabilities, int length,
     }
   }
   
-  inverse(inversionMatrix, inversionMatrixRowLength);
+  inversionMatrix = (*invert)(inversionMatrix, inversionMatrixRowLength, debug);
   
   for (i = 0; i < inversionMatrixRowLength; ++i) {
     for (j = 0; j < inversionMatrixRowLength; ++j) {
@@ -128,22 +129,82 @@ double computeMFPT(int* k, int* l, double **transitionProbabilities, int length,
   return mfptFromStart;
 }
 
-void inverse(double* A, int N) {
+double* inverse(double* a, int size, int debug) {
   // http://stackoverflow.com/questions/3519959/computing-the-inverse-of-a-matrix-using-lapack-in-c
-  int *IPIV    = (int*)malloc((N + 1) * sizeof(int));
-  int LWORK    = N * N;
-  double* WORK = (double*)malloc(LWORK * sizeof(double));
-  int INFO;
+  int* ipiv    = (int*)malloc((size + 1) * sizeof(int));
+  int lwork    = size * size;
+  double* work = (double*)malloc(lwork * sizeof(double));
+  int info;
 
-  dgetrf_(&N, &N, A, &N, IPIV, &INFO);
-  dgetri_(&N, A, &N, IPIV, WORK, &LWORK, &INFO);
+  dgetrf_(&size, &size, a, &size, ipiv, &info);
+  dgetri_(&size, a, &size, ipiv, work, &lwork, &info);
 
-  free(IPIV);
-  free(WORK);
+  free(ipiv);
+  free(work);
+  
+  return a;
 }
 
-void pseudoinverse(double* rowMatrix, int size) {
+double* pseudoinverse(double* a, int size, int debug) {
+  // Least-squares fit solution to B - Ax, where (in this case) A is square and B is the identity matrix.
+  int i, j, m, n, nrhs, lda, ldb, rank, nlvl, lwork, liwork, info;
+  double rcond;
+
+  m     = size;
+  n     = m;
+  nrhs  = m;
+  lda   = m;
+  ldb   = m;
+  rcond = -1.;
   
+  // NLVL = MAX(0, INT(LOG_2(MIN(M, N) / (SMLSIZ + 1))) + 1)
+  nlvl = MAX(0, (int)(log2(MIN(m, n) / (SMLSIZ + 1)) + 1));
+  
+  // LWORK [when M >= N] = MAX(1, 12 * M + 2 * M * SMLSIZ + 8 * M * NLVL + M * NRHS + (SMLSIZ + 1) ** 2)
+  lwork = MAX(1, 12 * m + 2 * m * SMLSIZ + 8 * m * nlvl + m * nrhs + (int)pow((double)(SMLSIZ + 1), 2.));
+  
+  // LIWORK = 3 * MIN(M, N) * NLVL + 11 * MIN(M, N)
+  liwork = 3 * MIN(m, n) * nlvl + 11 * MIN(m, n);
+  
+  double* b = (double*)calloc(ldb * nrhs, sizeof(double));
+  for (i = 0; i < ldb; ++i) {
+    b[i * nrhs + i] = 1.;
+  }
+  double* s    = (double*)malloc(MIN(m, n) * sizeof(double));
+  double* work = (double*)malloc(MAX(1, lwork) * sizeof(double));
+  int* iwork   = (int*)malloc(MAX(1, liwork) * sizeof(int));
+  
+  if (debug) {
+    printf("nlvl:\t%d\n", nlvl);
+    printf("lwork:\t%d\n", lwork);
+    printf("liwork:\t%d\n", liwork);
+  }
+  
+  dgelsd_(&n, &n, &nrhs, a, &lda, b, &ldb, s, &rcond, &rank, work, &lwork, iwork, &info);
+  
+  if (debug) {
+    printf("info:\t%d\n", info);
+  
+    printf("least-squares fit:\t");
+    for (i = 0; i < ldb; ++i) {
+      printf("%+.8f\t", b[i * nrhs + i]);
+    }
+    printf("\n");
+  
+    printf("s:\t");
+    for (i = 0; i < n; ++i) {
+      printf("%+.8f\t", s[i]);
+    }
+    printf("\n");
+  
+    printf("rank:\t%d\n", rank);
+  }
+  
+  free(s);
+  free(work);
+  free(iwork);
+  
+  return(b);
 }
 
 double transitionRateFromProbabilities(double from, double to, int validStates) {

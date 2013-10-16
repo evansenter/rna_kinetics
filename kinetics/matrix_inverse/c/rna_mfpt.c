@@ -5,11 +5,10 @@
 #include "rna_mfpt.h"
 #include "energy_grid_mfpt.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #define HEAVY_DEBUG (DEBUG && 0)
 
-short ENERGY_BASED, TRANSITION_MATRIX_INPUT;
-double RT = 1e-3 * 1.9872041 * (273.15 + 37);
+short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE;
 
 int main(int argc, char* argv[]) {
   unsigned long line_count, row_length;
@@ -69,7 +68,7 @@ int main(int argc, char* argv[]) {
     #endif
   } else {
     row_length = line_count;
-    transition_matrix = convertEnergyGridToTransitionMatrix(p, row_length, &transitionRateFromProbabilities);
+    transition_matrix = convertEnergyGridToTransitionMatrix(p, row_length, ENERGY_BASED ? &transitionRateFromEnergies : &transitionRateFromProbabilities);
     
     #if HEAVY_DEBUG
       printf("Transition matrix:\n");
@@ -86,9 +85,9 @@ int main(int argc, char* argv[]) {
   }
   
   #if HEAVY_DEBUG
-    mfpt = computeMFPT(k, l, transition_matrix, row_length, 1);
+    mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse, 1);
   #else
-    mfpt = computeMFPT(k, l, transition_matrix, row_length, 0);
+    mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse, 0);
   #endif
 
   printf("%.8f\n", mfpt);
@@ -143,6 +142,7 @@ void parse_args(int argc, char* argv[]) {
   
   ENERGY_BASED            = 0;
   TRANSITION_MATRIX_INPUT = 0;
+  PSEUDOINVERSE           = 0;
   
   if (argc < 2) {
     usage();
@@ -160,6 +160,11 @@ void parse_args(int argc, char* argv[]) {
           usage();
         }
         TRANSITION_MATRIX_INPUT = 1;
+      } else if (strcmp(argv[i], "-P") == 0) {
+        if (i == argc - 1) {
+          usage();
+        }
+        PSEUDOINVERSE = 1;
       } else {
         usage();
       }
@@ -179,6 +184,7 @@ void usage() {
   fprintf(stderr, "Options include the following:\n");
   fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, p_b - p_a) / n) rather than (min(1, p_b / p_a) / n)\n");
   fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n\n");
+  fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n");
   
   fprintf(stderr, "Program returns -1 (resp. -2) if the start state (resp. end state) probability is 0. Otherwise returns the MFPT as predicted by matrix inversion.\n");
   
