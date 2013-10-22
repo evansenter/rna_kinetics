@@ -20,10 +20,10 @@ endif
 RNAmfpt : rna_mfpt.o energy_grid_mfpt.o
 	$(CC) rna_mfpt.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
 	
-rna_mfpt.o : rna_mfpt.c rna_mfpt.h energy_grid_mfpt.h
+rna_mfpt.o : rna_mfpt.c rna_mfpt.h energy_grid_mfpt.h constants.h
 	$(CC) $(CCFLAGS) rna_mfpt.c
 	
-energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h
+energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h constants.h
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
 
 clean:

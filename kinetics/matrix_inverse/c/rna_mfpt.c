@@ -2,13 +2,13 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include "constants.h"
 #include "rna_mfpt.h"
 #include "energy_grid_mfpt.h"
 
-#define DEBUG 0
-#define HEAVY_DEBUG (DEBUG && 0)
-
 short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE;
+int START_STATE, END_STATE;
+double RT = 1e-3 * 1.9872041 * (273.15 + 37);
 
 int main(int argc, char* argv[]) {
   unsigned long line_count, row_length;
@@ -84,11 +84,7 @@ int main(int argc, char* argv[]) {
     #endif
   }
   
-  #if HEAVY_DEBUG
-    mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse, 1);
-  #else
-    mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse, 0);
-  #endif
+  mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse);
 
   printf("%.8f\n", mfpt);
   
@@ -143,6 +139,8 @@ void parse_args(int argc, char* argv[]) {
   ENERGY_BASED            = 0;
   TRANSITION_MATRIX_INPUT = 0;
   PSEUDOINVERSE           = 0;
+  START_STATE             = -1;
+  END_STATE               = -1;
   
   if (argc < 2) {
     usage();
@@ -165,6 +163,22 @@ void parse_args(int argc, char* argv[]) {
           usage();
         }
         PSEUDOINVERSE = 1;
+      } else if (strcmp(argv[i], "-A") == 0) {
+        if (i == argc - 1) {
+          usage();
+        } else if (!sscanf(argv[++i], "%d", &START_STATE)) {
+          usage();
+        } else if (START_STATE < 0 || (END_STATE >= 0 && START_STATE == END_STATE)) {
+          usage();
+        }
+      } else if (strcmp(argv[i], "-Z") == 0) {
+        if (i == argc - 1) {
+          usage();
+        } else if (!sscanf(argv[++i], "%d", &END_STATE)) {
+          usage();
+        } else if (END_STATE < 0 || (START_STATE >= 0 && START_STATE == END_STATE)) {
+          usage();
+        }
       } else {
         usage();
       }
@@ -183,10 +197,12 @@ void usage() {
 
   fprintf(stderr, "Options include the following:\n");
   fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, p_b - p_a) / n) rather than (min(1, p_b / p_a) / n)\n");
-  fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n\n");
+  fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n");
   fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n");
+  fprintf(stderr, "-A\tstart state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the first column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the start state.\n");
+  fprintf(stderr, "-Z\tend state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the second column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the end state.\n");
   
-  fprintf(stderr, "Program returns -1 (resp. -2) if the start state (resp. end state) probability is 0. Otherwise returns the MFPT as predicted by matrix inversion.\n");
+  fprintf(stderr, "\nProgram returns -1 (resp. -2) if the start state (resp. end state) probability is 0. Otherwise returns the MFPT as predicted by matrix inversion.\n");
   
   exit(0);
 }
