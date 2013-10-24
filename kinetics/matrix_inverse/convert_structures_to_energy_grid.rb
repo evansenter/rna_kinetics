@@ -89,7 +89,7 @@ class MoveWithHastings < Move
   end
 end
 
-move_klass = case ARGV[1]
+move_klass = case (algorithm = ARGV[1])
 when "hastings"    then MoveWithHastings
 when "no_hastings" then MoveWithoutHastings
 else raise ArgumentError.new("Second argument must be one of hastings / no_hastings") end
@@ -111,6 +111,6 @@ move_list = move_set.inject([]) do |list, (from, to_array)|
   list + all_moves 
 end.sort
 
-File.open("%s__%d_%d.csv" % [File.basename(ARGV[0], ".txt"), empty_index, mfe_index], ?w) do |file|
+File.open("%s__%d_%d_%s.csv" % [File.basename(ARGV[0], ".txt"), empty_index, mfe_index, algorithm], ?w) do |file|
   file.write(move_list.map(&:to_csv).join(?\n) + ?\n)
 end
