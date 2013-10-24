@@ -6,7 +6,7 @@
 #include "rna_mfpt.h"
 #include "energy_grid_mfpt.h"
 
-short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE;
+short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE, SINGLE_BP_MOVES_ONLY;
 int START_STATE, END_STATE;
 double RT = 1e-3 * 1.9872041 * (273.15 + 37);
 
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     #endif
   } else {
     row_length = line_count;
-    transition_matrix = convertEnergyGridToTransitionMatrix(p, row_length, ENERGY_BASED ? &transitionRateFromEnergies : &transitionRateFromProbabilities);
+    transition_matrix = convertEnergyGridToTransitionMatrix(k, l, p, row_length, ENERGY_BASED ? &transitionRateFromEnergies : &transitionRateFromProbabilities);
     
     #if HEAVY_DEBUG
       printf("Transition matrix:\n");
@@ -127,6 +127,11 @@ void populate_arrays(char* file_path, int* k, int* l, double* p) {
     token = strtok(NULL, ",");
     p[i] = atof(token);
     
+    if (!ENERGY_BASED && (p[i] < 0 || p[i] > 1)) {
+      fprintf(stderr, "Error: line number %d (0-indexed) in the input doesn't satisfy 0 <= probability (%+1.2f) <= 1. Did you forget the -E flag?\n\n", i, p[i]);
+      usage();
+    }
+    
     i++;
   }
   
@@ -134,11 +139,12 @@ void populate_arrays(char* file_path, int* k, int* l, double* p) {
 }
 
 void parse_args(int argc, char* argv[]) {
-  int i;
+  int i, error = 0;
   
   ENERGY_BASED            = 0;
   TRANSITION_MATRIX_INPUT = 0;
   PSEUDOINVERSE           = 0;
+  SINGLE_BP_MOVES_ONLY    = 0;
   START_STATE             = -1;
   END_STATE               = -1;
   
@@ -163,6 +169,11 @@ void parse_args(int argc, char* argv[]) {
           usage();
         }
         PSEUDOINVERSE = 1;
+      } else if (strcmp(argv[i], "-X") == 0) {
+        if (i == argc - 1) {
+          usage();
+        }
+        SINGLE_BP_MOVES_ONLY = 1;
       } else if (strcmp(argv[i], "-A") == 0) {
         if (i == argc - 1) {
           usage();
@@ -184,6 +195,21 @@ void parse_args(int argc, char* argv[]) {
       }
     }
   }
+  
+  if (TRANSITION_MATRIX_INPUT && !(START_STATE >= 0 && END_STATE >= 0)) {
+    fprintf(stderr, "Error: If the -T flag is provided, -A and -Z must be explicitly set!\n");
+    error++;
+  }
+  
+  if (TRANSITION_MATRIX_INPUT && SINGLE_BP_MOVES_ONLY) {
+    fprintf(stderr, "Error: If the -T flag is provided, the -X flag is not permitted because there's no way to infer bp. distance!\n");
+    error++;
+  }
+  
+  if (error) {
+    fprintf(stderr, "\n");
+    usage();
+  }
 }
 
 void usage() {
@@ -198,6 +224,7 @@ void usage() {
   fprintf(stderr, "Options include the following:\n");
   fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, p_b - p_a) / n) rather than (min(1, p_b / p_a) / n)\n");
   fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n");
+  fprintf(stderr, "-X\tsingle basepair moves, the default is disabled. If this flag is provided, the input must be in the form of an energy grid, and only diagonally adjacent moves are permitted. This option makes the assumption that the input is *not* a transition probability matrix already, and the input energy grid already satisfies the triangle inequality / parity condition.\n");
   fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n");
   fprintf(stderr, "-A\tstart state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the first column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the start state.\n");
   fprintf(stderr, "-Z\tend state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the second column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the end state.\n");

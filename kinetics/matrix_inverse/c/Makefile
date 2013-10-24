@@ -1,6 +1,6 @@
 # Makefile for FFTbor2D
 
-CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops
+CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wa,-q
 LDFLAGS           = -llapack -o
 BINDIR            = ~/bin # Change this to the BINDIR
 CC                = gcc
