@@ -1,5 +1,7 @@
 require "set"
 
+raise ArgumentError.new("ruby convert_structures_to_energy_grid.rb [input_file] [hastings / no_hastings]") unless ARGV.size == 2
+
 class Structure
   RT = 1e-3 * 1.9872041 * (273.15 + 37) # kcal / K / mol @ 37C
   
@@ -54,23 +56,19 @@ class Structure
   end
 end
 
-class MetropolisMove
-  attr_reader :from, :to, :p
+class Move
+  attr_reader :from, :to, :move_set, :p
   
-  def initialize(from, to, p: nil, num_moves: nil)
-    @from, @to   = from, to
-    @p           = p ? p : probability(num_moves)
-  end
-  
-  def probability(num_moves)
-    [1.0, Math.exp(-(to.mfe - from.mfe) / Structure::RT)].min / num_moves
+  def initialize(from, to, move_set, p: nil)
+    @from, @to, @move_set = from, to, move_set
+    @p                    = p ? p : probability
   end
   
   def to_csv
     "%d,%d,%.#{Float::DIG}f" % [from.index, to.index, p]
   end
   
-  def to_debug_string
+  def to_debug
     "from: %s (%+.2f)\tto: %s (%+.2f)\tp: %.#{Float::DIG}f" % [from.structure, from.mfe, to.structure, to.mfe, p]
   end
   
@@ -78,6 +76,23 @@ class MetropolisMove
     from.index != other_move.from.index ? from.index <=> other_move.from.index : to.index <=> other_move.to.index
   end
 end
+
+class MoveWithoutHastings < Move
+  def probability
+    [1.0, Math.exp(-(to.mfe - from.mfe) / Structure::RT)].min / move_set[from].size
+  end
+end
+
+class MoveWithHastings < Move
+  def probability
+    [1.0, (move_set[from].size.to_f / move_set[to].size.to_f) * (Math.exp(-(to.mfe - from.mfe) / Structure::RT))].min / move_set[from].size
+  end
+end
+
+move_klass = case ARGV[1]
+when "hastings"    then MoveWithHastings
+when "no_hastings" then MoveWithoutHastings
+else raise ArgumentError.new("Second argument must be one of hastings / no_hastings") end
 
 structures  = File.read(ARGV[0]).split(?\n).map { |line| line.split(?\t) }.each_with_index.map(&Structure.method(:new))
 empty_index = structures.find { |structure| structure.mfe.zero? }.index
@@ -91,8 +106,8 @@ move_set    = structures.inject({}) do |hash, structure_1|
 end
 
 move_list = move_set.inject([]) do |list, (from, to_array)|
-  outgoing  = to_array.map { |to| MetropolisMove.new(from, to, num_moves: to_array.size) }
-  all_moves = (outgoing + [MetropolisMove.new(from, from, p: 1 - outgoing.map(&:p).inject(&:+))]).select { |move| move.p > 0 }
+  outgoing  = to_array.map { |to| move_klass.new(from, to, move_set) }
+  all_moves = (outgoing + [move_klass.new(from, from, move_set, p: 1 - outgoing.map(&:p).inject(&:+))]).select { |move| move.p > 0 }
   list + all_moves 
 end.sort
 
