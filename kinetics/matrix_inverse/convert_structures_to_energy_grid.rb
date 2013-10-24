@@ -17,38 +17,20 @@ class Structure
   
   class << self
     def base_pairs(structure)
-      get_pairings(structure).each_with_index.inject(Set.new) do |set, (j, i)|
-        j >= 0 ? set << Set[i, j] : set
-      end
-    end
-
-    def get_pairings(structure)
     	stack = []
   
-      structure.each_char.each_with_index.inject(Array.new(structure.length, -1)) do |array, (symbol, index)|
-    	  array.tap do      
+      structure.each_char.each_with_index.inject(Set.new) do |set, (symbol, index)|
+    	  set.tap do      
     	    case symbol
-    	    when "(" then stack.push(index)
-    	    when ")" then 
-    	      if stack.empty?
-    	        raise "Too many ')' in '#{structure}'"
-    	      else
-    	        stack.pop.tap do |opening|
-    	          array[opening] = index
-    	          array[index]   = opening
-    	        end
-    	      end
+    	    when ?( then stack.push(index)
+    	    when ?) then 
+            set << [stack.pop, index]
     	    end
     	  end
-    	end.tap do
-    	  raise "Too many '(' in '#{structure}'" unless stack.empty?
     	end
     end
     
     def bp_distance(structure_1, structure_2)
-      # Takes two structures and calculates the distance between them by |symmetric difference(bp_in_a, bp_in_b)|
-      raise "The two structures are not the same length" unless structure_1.length == structure_2.length
-  
       bp_set_1, bp_set_2 = base_pairs(structure_1), base_pairs(structure_2)
   
       ((bp_set_1 - bp_set_2) + (bp_set_2 - bp_set_1)).count
@@ -100,7 +82,7 @@ mfe_index   = structures.min { |a, b| a.mfe <=> b.mfe }.index
 move_set    = structures.inject({}) do |hash, structure_1|
   hash.tap do
     hash[structure_1] = structures.select do |structure_2|
-      structure_1.distance(structure_2) == 1
+      (structure_1.structure.scan(?.).size - structure_2.structure.scan(?.).size).abs == 2 && structure_1.distance(structure_2) == 1
     end
   end
 end
