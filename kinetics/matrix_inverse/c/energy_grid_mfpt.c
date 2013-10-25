@@ -20,9 +20,9 @@
   extern int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
 #endif
   
-extern double RT;
+extern double RT, EPSILON;
 extern short ENERGY_BASED, SINGLE_BP_MOVES_ONLY, HASTINGS;
-extern int START_STATE, END_STATE;
+extern int START_STATE, END_STATE, SEQ_LENGTH;
 
 double** convertEnergyGridToTransitionMatrix(int* k, int* l, double* p, int length) {
   int i, j, bpDist, numX, numY, distFromK = -1, distFromL = -1;
