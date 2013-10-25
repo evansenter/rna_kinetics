@@ -21,22 +21,77 @@
 #endif
   
 extern double RT;
+extern short ENERGY_BASED, SINGLE_BP_MOVES_ONLY, HASTINGS;
 extern int START_STATE, END_STATE;
 
-double** convertEnergyGridToTransitionMatrix(double* p, int length, double (*transitionRate)(double, double, int)) {
-  int i, j;
+double** convertEnergyGridToTransitionMatrix(int* k, int* l, double* p, int length) {
+  int i, j, bpDist, numX, numY, distFromK = -1, distFromL = -1;
   double rowSum;
+  double* numAdjacentMoves         = (double*)malloc(length * sizeof(double));
   double** transitionProbabilities = (double**)malloc(length * sizeof(double*));
   
-  for (i = 0; i < length; ++i) {
-    rowSum = 0.;
+  if (SINGLE_BP_MOVES_ONLY) {
+    for (i = 0; i < length; ++i) {
+      if (k[i] == 0) {
+        distFromL = l[i];
+      }
+      
+      if (l[i] == 0) {
+        distFromK = k[i];
+      }
+    }
     
-    transitionProbabilities[i] = (double*)malloc(length * sizeof(double));
+    if (distFromK == distFromL && distFromK >= 0) {
+      bpDist = distFromK;
+    } else {
+      fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distFromL, distFromK);
+      exit(0);
+    }
+    
+    for (i = 0; i < length; ++i) {
+      numAdjacentMoves[i] = (double)numSingleBpMoves(k[i], l[i], k, l, bpDist, length);
+      
+      #ifdef DEBUG
+        printf("numSingleBpMoves(%d, %d, bpDist = %d, length = %d):\t%f\n", k[i], l[i], bpDist, length, numAdjacentMoves[i]);
+      #endif
+    }
+  }
+  
+  for (i = 0; i < length; ++i) {
+    rowSum                     = 0.;
+    transitionProbabilities[i] = (double*)calloc(length, sizeof(double));
       
     for (j = 0; j < length; ++j) {
       if (i != j) {
-        transitionProbabilities[i][j] = (*transitionRate)(p[i], p[j], length - 1);
-        rowSum                       += transitionProbabilities[i][j];
+        if (SINGLE_BP_MOVES_ONLY) {
+          if ((int)abs(k[i] - k[j]) == 1 && (int)abs(l[i] - l[j]) == 1) {
+            #ifdef HEAVY_DEBUG
+              printf("Single bp move: %d, %d => %d, %d\n", k[i], l[i], k[j], l[j]);
+            #endif
+            
+            if (HASTINGS) {
+              if (ENERGY_BASED) {
+                transitionProbabilities[i][j] = transitionRateFromEnergiesWithHastings(p[i], p[j], numAdjacentMoves[i], numAdjacentMoves[j]);
+              } else {
+                transitionProbabilities[i][j] = transitionRateFromProbabilitiesWithHastings(p[i], p[j], numAdjacentMoves[i], numAdjacentMoves[j]);
+              }
+            } else {
+              if (ENERGY_BASED) {
+                transitionProbabilities[i][j] = transitionRateFromEnergies(p[i], p[j], numAdjacentMoves[i]);
+              } else {
+                transitionProbabilities[i][j] = transitionRateFromProbabilities(p[i], p[j], numAdjacentMoves[i]);
+              }
+            }
+          }
+        } else {
+          if (ENERGY_BASED) {
+            transitionProbabilities[i][j] = transitionRateFromEnergies(p[i], p[j], (double)(length - 1));
+          } else {
+            transitionProbabilities[i][j] = transitionRateFromProbabilities(p[i], p[j], (double)(length - 1));
+          }
+        }
+        
+        rowSum += transitionProbabilities[i][j];
       }
     }
     
@@ -255,10 +310,39 @@ double* pseudoinverse(double* a, int size) {
   return(b);
 }
 
-double transitionRateFromProbabilities(double from, double to, int validStates) {
-  return MIN(1., to / from) / validStates;
+int numSingleBpMoves(int x, int y, int* k, int* l, int bpDist, int length) {
+  int j, a, b, numMoves = 0;
+  
+  for (j = 0; j < length; ++j) {
+    a = k[j];
+    b = l[j];
+    
+    if (
+      // Because N(x, y) is restricted to non-zero probabilities, we *assume* the input data satisfies the triangle inequality and bounds.
+      // a + b >= bpDist &&
+      // a + bpDist >= b &&
+      // b + bpDist >= a &&
+      (int)abs(x - a) == 1 && (int)abs(y - b) == 1
+    ) {
+      numMoves++;
+    }
+  }
+  
+  return numMoves;
 }
 
-double transitionRateFromEnergies(double from, double to, int validStates) {
-  return MIN(1, exp(-(to - from) / RT)) / validStates;
+double transitionRateFromProbabilities(double from, double to, double numFrom) {
+  return MIN(1., to / from) / numFrom;
+}
+
+double transitionRateFromEnergies(double from, double to, double numFrom) {
+  return MIN(1., exp(-(to - from) / RT)) / numFrom;
+}
+
+double transitionRateFromProbabilitiesWithHastings(double from, double to, double numFrom, double numTo) {
+  return MIN(1., (numFrom / numTo) * (to / from)) / numFrom;
+}
+
+double transitionRateFromEnergiesWithHastings(double from, double to, double numFrom, double numTo) {
+  return MIN(1., (numFrom / numTo) * exp(-(to - from) / RT)) / numFrom;
 }
