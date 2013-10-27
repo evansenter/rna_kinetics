@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
   
   populate_arrays(argv[argc - 1], k, l, p);
   
-  #if DEBUG
-    printf("Input data:\n");
+  #ifdef DEBUG
+    printf("\nInput data:\n");
     for (i = 0; i < line_count; ++i) {
       printf("%d\t%d\t%.8f\n", k[i], l[i], p[i]);
     }
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
       transition_matrix[k[i]][l[i]] = p[i];
     }
     
-    #if HEAVY_DEBUG
+    #if SUPER_HEAVY_DEBUG
       printf("Transition matrix:\n");
       printf("(x)\t(y)\tp(x -> y)\n");
       
@@ -68,14 +68,14 @@ int main(int argc, char* argv[]) {
     #endif
   } else {
     row_length = line_count;
-    transition_matrix = convertEnergyGridToTransitionMatrix(k, l, p, row_length);
+    transition_matrix = convertEnergyGridToTransitionMatrix(&k, &l, &p, &row_length);
     
-    #if HEAVY_DEBUG
+    #if SUPER_HEAVY_DEBUG
       printf("Transition matrix:\n");
       printf("i\tj\t(x, y)\t(a, b)\tp((x, y) -> (a, b))\n");
 
-      for (i = 0; i < line_count; ++i) {
-        for (j = 0; j < line_count; ++j) {
+      for (i = 0; i < row_length; ++i) {
+        for (j = 0; j < row_length; ++j) {
           printf("%d\t%d\t(%d, %d)\t=>\t(%d, %d)\t%.8f\n", i, j, k[i], l[i], k[j], l[j], transition_matrix[i][j]);
         }
   
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
   
   mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse);
 
-  printf("%.8f\n", mfpt);
+  printf("%.15f\n", mfpt);
   
   return 0;
 }
@@ -248,6 +248,11 @@ void parse_args(int argc, char* argv[]) {
   
   if (HASTINGS && !SINGLE_BP_MOVES_ONLY) {
     fprintf(stderr, "Error: If the -H flag is provided, -X must be explicitly set!\n");
+    error++;
+  }
+  
+  if (SEQ_LENGTH && (START_STATE >= 0 || END_STATE >= 0)) {
+    fprintf(stderr, "Error: If the -N flag is provided, -A and -Z are not permitted!\n");
     error++;
   }
   
