@@ -49,6 +49,7 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
       bpDist = distFromK;
     } else {
       fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distFromL, distFromK);
+      printf("-3\n");
       exit(0);
     }
     

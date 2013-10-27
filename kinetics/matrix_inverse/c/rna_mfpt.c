@@ -251,8 +251,8 @@ void parse_args(int argc, char* argv[]) {
     error++;
   }
   
-  if (SEQ_LENGTH && (START_STATE >= 0 || END_STATE >= 0)) {
-    fprintf(stderr, "Error: If the -N flag is provided, -A and -Z are not permitted!\n");
+  if (SEQ_LENGTH && (ENERGY_BASED || START_STATE >= 0 || END_STATE >= 0)) {
+    fprintf(stderr, "Error: If the -N flag is provided, -E, -A and -Z are not permitted!\n");
     error++;
   }
   
@@ -290,7 +290,7 @@ void usage() {
 
   fprintf(stderr, "-Z\tend state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the second column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the end state.\n");
   
-  fprintf(stderr, "\nProgram returns -1 (resp. -2) if the start state (resp. end state) probability is 0. Otherwise returns the MFPT as predicted by matrix inversion.\n");
+  fprintf(stderr, "\nProgram returns -1 (resp. -2) if the start state (resp. end state) probability is 0. -3 is returned if the distance between the two input structures could not be inferred from the input data (usually also means that one of the states has a 0-probability). Otherwise returns the MFPT as predicted by matrix inversion.\n");
   
   exit(0);
 }
