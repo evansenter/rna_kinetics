@@ -4,6 +4,7 @@ kinetics/synthetic_seq_files
 *.pdf
 *.bin
 test*
-*.so
-*.o
+**/*.a
+**/*.so
+**/*.o
 **/RNAmfpt
