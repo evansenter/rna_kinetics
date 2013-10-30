@@ -81,9 +81,9 @@ double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, 
         #endif
       }
       
-      old_k = (int*)malloc(*length * sizeof(int));
-      old_l = (int*)malloc(*length * sizeof(int));
-      old_p = (double*)malloc(*length * sizeof(double));
+      old_k = malloc(*length * sizeof(int));
+      old_l = malloc(*length * sizeof(int));
+      old_p = malloc(*length * sizeof(double));
       
       for (i = 0; i <= *length; ++i) {
         old_k[i] = (*k)[i];
@@ -133,7 +133,7 @@ double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, 
       *length = validPositions;
     }
     
-    number_of_adjacent_moves = (double*)malloc(*length * sizeof(double));
+    number_of_adjacent_moves = malloc(*length * sizeof(double));
     
     #ifdef DEBUG
       printf("\nFull dataset:\n");
@@ -148,11 +148,11 @@ double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, 
     }
   }
   
-  transition_probabilities = (double**)malloc(*length * sizeof(double*));
+  transition_probabilities = malloc(*length * sizeof(double*));
   
   for (i = 0; i < *length; ++i) {
     row_sum                     = 0.;
-    transition_probabilities[i] = (double*)calloc(*length, sizeof(double));
+    transition_probabilities[i] = calloc(*length, sizeof(double));
       
     for (j = 0; j < *length; ++j) {
       if (i != j) {
@@ -238,8 +238,8 @@ double compute_mfpt(int* k, int* l, double **transition_probabilities, int lengt
     start_index--;
   }
   
-  double *mfpt             = (double*)calloc(inversion_matrix_row_length, sizeof(double));
-  double *inversion_matrix = (double*)malloc((int)pow((double)inversion_matrix_row_length, 2.) * sizeof(double));
+  double *mfpt             = calloc(inversion_matrix_row_length, sizeof(double));
+  double *inversion_matrix = malloc((int)pow((double)inversion_matrix_row_length, 2.) * sizeof(double));
   
   #ifdef SUPER_HEAVY_DEBUG
     printf("Inversion matrix:\n");
@@ -292,9 +292,9 @@ double compute_mfpt(int* k, int* l, double **transition_probabilities, int lengt
 
 double* inverse(double* a, int size) {
   // http://stackoverflow.com/questions/3519959/computing-the-inverse-of-a-matrix-using-lapack-in-c
-  int* ipiv    = (int*)malloc((size + 1) * sizeof(int));
+  int* ipiv    = malloc((size + 1) * sizeof(int));
   int lwork    = size * size;
-  double* work = (double*)malloc(lwork * sizeof(double));
+  double* work = malloc(lwork * sizeof(double));
   int info;
 
   dgetrf_(&size, &size, a, &size, ipiv, &info);
@@ -327,7 +327,7 @@ double* pseudoinverse(double* a, int size) {
   lda   = m;
   ldb   = m;
   
-  double* b = (double*)calloc(ldb * nrhs, sizeof(double));
+  double* b = calloc(ldb * nrhs, sizeof(double));
   for (i = 0; i < ldb; ++i) {
     b[i * nrhs + i] = 1.;
   }
@@ -337,7 +337,7 @@ double* pseudoinverse(double* a, int size) {
   #endif
     
   lwork        = -1;
-  double* work = (double*)malloc(MAX(1, lwork) * sizeof(double));
+  double* work = malloc(MAX(1, lwork) * sizeof(double));
   
   dgels_(&trans, &m, &n, &nrhs, a, &lda, b, &ldb, work, &lwork, &info);
   
@@ -349,7 +349,7 @@ double* pseudoinverse(double* a, int size) {
     
   free(work);
   
-  work = (double*)malloc(MAX(1, lwork) * sizeof(double));
+  work = malloc(MAX(1, lwork) * sizeof(double));
   
   dgels_(&trans, &m, &n, &nrhs, a, &lda, b, &ldb, work, &lwork, &info);
   

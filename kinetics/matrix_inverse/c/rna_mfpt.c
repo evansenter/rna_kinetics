@@ -23,9 +23,9 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   
-  k = (int*)malloc(line_count * sizeof(int));
-  l = (int*)malloc(line_count * sizeof(int));
-  p = (double*)malloc(line_count * sizeof(double));
+  k = malloc(line_count * sizeof(int));
+  l = malloc(line_count * sizeof(int));
+  p = malloc(line_count * sizeof(double));
   
   populate_arrays(argv[argc - 1], k, l, p, parameters);
   
@@ -46,9 +46,9 @@ int main(int argc, char* argv[]) {
     }
     row_length++;
     
-    transition_matrix = (double**)malloc(row_length * sizeof(double*));
+    transition_matrix = malloc(row_length * sizeof(double*));
     for (i = 0; i < row_length + 1; ++i) {
-      transition_matrix[i] = (double*)calloc(row_length, sizeof(double));
+      transition_matrix[i] = calloc(row_length, sizeof(double));
     }
     
     for (i = 0; i < line_count; ++i) {
