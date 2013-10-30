@@ -113,12 +113,14 @@ GlobalParameters parse_args(int argc, char* argv[]) {
     debug_parameters(parameters);
   }
     
-  error_handling(parameters);
+  if (error_handling(parameters)) {
+    usage();
+  }
   
   return parameters;
 }
 
-void error_handling(GlobalParameters parameters) {
+int error_handling(GlobalParameters parameters) {
   int error = 0;
   
   if (parameters.start_state == parameters.end_state && parameters.start_state >= 0) {
@@ -150,8 +152,9 @@ void error_handling(GlobalParameters parameters) {
     error++;
   }
   
-  if (parameters.sequence_length && !(parameters.additive_epsilon || parameters.distributed_epsilon)) {
-    fprintf(stderr, "Error: If the -N flag is provided, -O or -Q must be provided!\n");
+  if ((parameters.sequence_length && !(parameters.additive_epsilon || parameters.distributed_epsilon)) ||
+      (!parameters.sequence_length && (parameters.additive_epsilon || parameters.distributed_epsilon))) {
+    fprintf(stderr, "Error: The -N flag must be used with exactly one of the -O or -Q flags!\n");
     error++;
   }
   
@@ -167,8 +170,9 @@ void error_handling(GlobalParameters parameters) {
   
   if (error) {
     fprintf(stderr, "\n");
-    usage();
   }
+  
+  return error;
 }
 
 void debug_parameters(GlobalParameters parameters) {

@@ -17,7 +17,7 @@ typedef struct GlobalParameters {
 
 GlobalParameters init_params();
 GlobalParameters parse_args(int, char*[]);
-void error_handling(GlobalParameters);
+int error_handling(GlobalParameters);
 void debug_parameters(GlobalParameters);
 void usage();
 
