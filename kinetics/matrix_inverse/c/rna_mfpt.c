@@ -1,26 +1,21 @@
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 #include "constants.h"
+#include "params.h"
 #include "rna_mfpt.h"
 #include "energy_grid_mfpt.h"
 
-short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE, SINGLE_BP_MOVES_ONLY, HASTINGS;
-int START_STATE, END_STATE, SEQ_LENGTH;
-double EPSILON, ALT_EPSILON, RT = 1e-3 * 1.9872041 * (273.15 + 37);
-
 int main(int argc, char* argv[]) {
-  unsigned long line_count, row_length;
-  int i, j;
+  int i, j, line_count, row_length;
   int* k;
   int* l;
   double mfpt;
   double* p;
   double** transition_matrix;
+  GlobalParameters parameters;
   
-  parse_args(argc, argv);
-  
+  parameters = parse_args(argc, argv);
   line_count = count_lines(argv[argc - 1]);
   
   if (!line_count) {
@@ -32,16 +27,18 @@ int main(int argc, char* argv[]) {
   l = (int*)malloc(line_count * sizeof(int));
   p = (double*)malloc(line_count * sizeof(double));
   
-  populate_arrays(argv[argc - 1], k, l, p);
+  populate_arrays(argv[argc - 1], k, l, p, parameters);
   
-  #ifdef DEBUG
+  #ifdef SUPER_HEAVY_DEBUG
     printf("\nInput data:\n");
     for (i = 0; i < line_count; ++i) {
       printf("%d\t%d\t%.8f\n", k[i], l[i], p[i]);
     }
   #endif
   
-  if (TRANSITION_MATRIX_INPUT) {
+  // We already have a transition matrix, this is the easy case. Just need to find MFPT.
+  if (parameters.transition_matrix_input) {
+    // We need to infer the dimensions of the transition matrix.
     row_length = 0;
     for (i = 0; i < line_count; ++i) {
       row_length = k[i] > row_length ? k[i] : row_length;
@@ -60,19 +57,20 @@ int main(int argc, char* argv[]) {
     
     #if SUPER_HEAVY_DEBUG
       printf("Transition matrix:\n");
-      printf("(x)\t(y)\tp(x -> y)\n");
+      printf("(x)\t(y)\tp(x . y)\n");
       
       for (i = 0; i < line_count; ++i) {
         printf("(%d)\t=>\t(%d)\t%.8f\n", k[i], l[i], transition_matrix[k[i]][l[i]]);
       }
     #endif
+  // We have an energy grid, this requires converting the energy grid into a transition matrix data structure before finding MFPT.
   } else {
-    row_length = line_count;
-    transition_matrix = convertEnergyGridToTransitionMatrix(&k, &l, &p, &row_length);
+    row_length        = line_count;
+    transition_matrix = convert_energy_grid_to_transition_matrix(&k, &l, &p, &row_length, parameters);
     
     #if SUPER_HEAVY_DEBUG
       printf("Transition matrix:\n");
-      printf("i\tj\t(x, y)\t(a, b)\tp((x, y) -> (a, b))\n");
+      printf("i\tj\t(x, y)\t(a, b)\tp((x, y) . (a, b))\n");
 
       for (i = 0; i < row_length; ++i) {
         for (j = 0; j < row_length; ++j) {
@@ -84,17 +82,21 @@ int main(int argc, char* argv[]) {
     #endif
   }
   
-  mfpt = computeMFPT(k, l, transition_matrix, row_length, PSEUDOINVERSE ? &pseudoinverse : &inverse);
-
-  printf("%.15f\n", mfpt);
+  mfpt = compute_mfpt(k, l, transition_matrix, row_length, parameters);
+  printf("%+.8f\n", mfpt);
+  
+  free(transition_matrix);
+  free(k);
+  free(l);
+  free(p);
   
   return 0;
 }
 
-unsigned long count_lines(char* file_path) {
+int count_lines(char* file_path) {
   FILE *file = fopen(file_path, "r");
   int c;
-  unsigned long line_count = 0;
+  int line_count = 0;
   
   if (file == NULL) {
     fprintf(stderr, "File not found.\n");
@@ -113,7 +115,7 @@ unsigned long count_lines(char* file_path) {
   return line_count;
 }
 
-void populate_arrays(char* file_path, int* k, int* l, double* p) {
+void populate_arrays(char* file_path, int* k, int* l, double* p, GlobalParameters parameters) {
   int i = 0;
   FILE *file = fopen(file_path, "r");
   char *token;
@@ -121,13 +123,13 @@ void populate_arrays(char* file_path, int* k, int* l, double* p) {
   
   while (fgets(line, 1024, file)) {
     token = strtok(line, ",");
-    k[i] = atoi(token);
+    k[i]  = atoi(token);
     token = strtok(NULL, ",");
-    l[i] = atoi(token);
+    l[i]  = atoi(token);
     token = strtok(NULL, ",");
-    p[i] = atof(token);
+    p[i]  = atof(token);
     
-    if (!ENERGY_BASED && (p[i] < 0 || p[i] > 1)) {
+    if (!parameters.energy_based && (p[i] < 0 || p[i] > 1)) {
       fprintf(stderr, "Error: line number %d (0-indexed) in the input doesn't satisfy 0 <= probability (%+1.2f) <= 1. Did you forget the -E flag?\n\n", i, p[i]);
       usage();
     }
@@ -136,184 +138,4 @@ void populate_arrays(char* file_path, int* k, int* l, double* p) {
   }
   
   fclose(file);
-}
-
-void parse_args(int argc, char* argv[]) {
-  int i, error = 0;
-  
-  ENERGY_BASED            = 0;
-  TRANSITION_MATRIX_INPUT = 0;
-  PSEUDOINVERSE           = 0;
-  SINGLE_BP_MOVES_ONLY    = 0;
-  HASTINGS                = 0;
-  SEQ_LENGTH              = 0;
-  EPSILON                 = 0;
-  ALT_EPSILON             = 0;
-  START_STATE             = -1;
-  END_STATE               = -1;
-  
-  if (argc < 2) {
-    usage();
-  }
-  
-  for (i = 1; i < argc; i++) {
-    if (argv[i][0] == '-') {
-      if (strcmp(argv[i], "-E") == 0) {
-        if (i == argc - 1) {
-          usage();
-        }
-        ENERGY_BASED = 1;
-      } else if (strcmp(argv[i], "-T") == 0) {
-        if (i == argc - 1) {
-          usage();
-        }
-        TRANSITION_MATRIX_INPUT = 1;
-      } else if (strcmp(argv[i], "-P") == 0) {
-        if (i == argc - 1) {
-          usage();
-        }
-        PSEUDOINVERSE = 1;
-      } else if (strcmp(argv[i], "-X") == 0) {
-        if (i == argc - 1) {
-          usage();
-        }
-        SINGLE_BP_MOVES_ONLY = 1;
-      } else if (strcmp(argv[i], "-H") == 0) {
-        if (i == argc - 1) {
-          usage();
-        }
-        HASTINGS = 1;
-      } else if (strcmp(argv[i], "-A") == 0) {
-        if (i == argc - 1) {
-          usage();
-        } else if (!sscanf(argv[++i], "%d", &START_STATE)) {
-          usage();
-        } else if (START_STATE < 0 || (END_STATE >= 0 && START_STATE == END_STATE)) {
-          usage();
-        }
-      } else if (strcmp(argv[i], "-Z") == 0) {
-        if (i == argc - 1) {
-          usage();
-        } else if (!sscanf(argv[++i], "%d", &END_STATE)) {
-          usage();
-        } else if (END_STATE < 0 || (START_STATE >= 0 && START_STATE == END_STATE)) {
-          usage();
-        }
-      } else if (strcmp(argv[i], "-N") == 0) {
-        if (i == argc - 1) {
-          usage();
-        } else if (!sscanf(argv[++i], "%d", &SEQ_LENGTH)) {
-          usage();
-        } else if (SEQ_LENGTH <= 0) {
-          usage();
-        }
-      } else if (strcmp(argv[i], "-O") == 0) {
-        if (i == argc - 1) {
-          usage();
-        } else if (!sscanf(argv[++i], "%lf", &EPSILON)) {
-          usage();
-        } else if (EPSILON <= 0 || SEQ_LENGTH <= 0) {
-          usage();
-        }
-      } else if (strcmp(argv[i], "-Q") == 0) {
-        if (i == argc - 1) {
-          usage();
-        } else if (!sscanf(argv[++i], "%lf", &ALT_EPSILON)) {
-          usage();
-        } else if (ALT_EPSILON <= 0 || SEQ_LENGTH <= 0) {
-          usage();
-        }
-      } else {
-        usage();
-      }
-    }
-  }
-  
-  #ifdef DEBUG
-    printf("ENERGY_BASED\t\t%hd\n", ENERGY_BASED);
-    printf("TRANSITION_MATRIX_INPUT\t%hd\n", TRANSITION_MATRIX_INPUT);
-    printf("PSEUDOINVERSE\t\t%hd\n", PSEUDOINVERSE);
-    printf("SINGLE_BP_MOVES_ONLY\t%hd\n", SINGLE_BP_MOVES_ONLY);
-    printf("HASTINGS\t\t%hd\n", HASTINGS);
-    printf("SEQ_LENGTH\t\t%d\n", SEQ_LENGTH);
-    printf("EPSILON\t\t\t%.15f\n", EPSILON);
-    printf("ALT_EPSILON\t\t\t%.15f\n", ALT_EPSILON);
-    printf("START_STATE\t\t%d\n", START_STATE);
-    printf("END_STATE\t\t%d\n", END_STATE);
-  #endif
-  
-  if (TRANSITION_MATRIX_INPUT && (HASTINGS || SEQ_LENGTH || EPSILON || SINGLE_BP_MOVES_ONLY)) {
-    fprintf(stderr, "Error: If the -T flag is provided, -H, -N, -O and -X are not permitted!\n");
-    error++;
-  }
-  
-  if (TRANSITION_MATRIX_INPUT && !(START_STATE >= 0 && END_STATE >= 0)) {
-    fprintf(stderr, "Error: If the -T flag is provided, -A and -Z must be explicitly set!\n");
-    error++;
-  }
-  
-  if (SINGLE_BP_MOVES_ONLY && ENERGY_BASED && (SEQ_LENGTH || EPSILON)) {
-    fprintf(stderr, "Error: If the -X and -E flags are provided, -N and -O are not permitted!\n");
-    error++;
-  }
-  
-  if (HASTINGS && !SINGLE_BP_MOVES_ONLY) {
-    fprintf(stderr, "Error: If the -H flag is provided, -X must be explicitly set!\n");
-    error++;
-  }
-  
-  if (SEQ_LENGTH && !(EPSILON || ALT_EPSILON)) {
-    fprintf(stderr, "Error: If the -N flag is provided, -O or -Q must be provided!\n");
-    error++;
-  }
-  
-  if (EPSILON && ALT_EPSILON) {
-    fprintf(stderr, "Error: The -O and -Q flags are not permitted together!\n");
-    error++;
-  }
-  
-  if (SEQ_LENGTH && (ENERGY_BASED || START_STATE >= 0 || END_STATE >= 0)) {
-    fprintf(stderr, "Error: If the -N flag is provided, -E, -A and -Z are not permitted!\n");
-    error++;
-  }
-  
-  if (error) {
-    fprintf(stderr, "\n");
-    usage();
-  }
-}
-
-void usage() {
-  fprintf(stderr, "RNAmfpt [options] input_csv\n\n");
-    
-  fprintf(stderr, "where input_csv is a CSV file (with *no* header) of the format:\n");
-  fprintf(stderr, "k_0,l_0,p_0\n");
-  fprintf(stderr, "...,...,...\n");
-  fprintf(stderr, "k_n,l_n,p_n\n\n");
-
-  fprintf(stderr, "Options include the following:\n");
-  
-  fprintf(stderr, "-A\tstart state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the first column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the start state.\n");
-    
-  fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, exp(-(E_b - E_a) / RT) / n) rather than (min(1, p_b / p_a) / n).\n");
-  
-  fprintf(stderr, "-H\tHastings adjustment, the default is disabled. If this flag is provided, the input must be in the form of an energy grid, and only diagonally adjacent moves are permitted (in the all-to-all transition case, N(X) / N(Y) == 1). Calculating N(X) and N(Y) will respect grid boundaries and the triangle equality, and the basepair distance between the two structures for kinetics is inferred from the energy grid.\n");
-  
-  fprintf(stderr, "-N\tsequence length, the default is disabled. This flag represents the sequence length of the sequence on which kinetics is being performed. It is used in conjunction with the -O flag to ensure that the graph is fully connected. If -O is not explicitly set, the -Q flag must be set.\n");
-  
-  fprintf(stderr, "-O\tepsilon, the default is disabled. This flag should be a %%f-parseable epsilon value added to *all* positions in the energy grid (including valid positions not present in the input), which is then renormalized and used to ensure that the graph is fully connected.\n");
-  
-  fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n")
-    ;
-  fprintf(stderr, "-Q\talternative epsilon, the default is disabled. If this flag is provided, each accessible position is increased by .01 / num_accessible_positions, and then renormalized to ensure that all valid positions have a small non-zero probability. This flag is mutually exclusive with -O.\n");
-  
-  fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n");
-  
-  fprintf(stderr, "-X\tsingle basepair moves, the default is disabled. If this flag is provided, the input must be in the form of an energy grid, and only diagonally adjacent moves are permitted. This option makes the assumption that the input is *not* a transition probability matrix already, and the input energy grid already satisfies the triangle inequality / parity condition.\n");
-
-  fprintf(stderr, "-Z\tend state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the second column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the end state.\n");
-  
-  fprintf(stderr, "\nProgram returns -1 (resp. -2) if the start state (resp. end state) probability is 0. -3 is returned if the distance between the two input structures could not be inferred from the input data (usually also means that one of the states has a 0-probability). Otherwise returns the MFPT as predicted by matrix inversion.\n");
-  
-  exit(0);
 }

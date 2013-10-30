@@ -2,75 +2,69 @@
 #include <stdlib.h>
 #include <math.h>
 #include "constants.h"
+#include "params.h"
 #include "energy_grid_mfpt.h"
 
+#define RT (1e-3 * 1.9872041 * (273.15 + 37))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define SMLSIZ 25
 
 #ifdef __cplusplus
   extern "C" {
     void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
     void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);  
     int dgels_(char *t, int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *work, int *lwork, int *info);
-    int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
   }
 #else
   extern void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
   extern void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
   extern int dgels_(char *t, int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *work, int *lwork, int *info);
-  extern int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
 #endif
-  
-extern double RT, EPSILON, ALT_EPSILON;
-extern short ENERGY_BASED, SINGLE_BP_MOVES_ONLY, HASTINGS;
-extern int START_STATE, END_STATE, SEQ_LENGTH;
 
-double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsigned long* length) {
-  int i, j, m, bpDist, numX, numY, inputDataPointer, pointer = 0, distFromK = -1, distFromL = -1;
-  unsigned long validPositions = 0;
+double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, int* length, GlobalParameters parameters) {
+  int i, j, m, bp_distance, input_data_index, pointer = 0, distance_from_start = -1, distance_from_end = -1, validPositions = 0;
   int* old_k;
   int* old_l;
-  double rowSum, epsilonModifier;
+  double row_sum, epsilon;
   double* old_p;
-  double* numAdjacentMoves;
-  double** transitionProbabilities;
+  double* number_of_adjacent_moves;
+  double** transition_probabilities;
   
-  if (SINGLE_BP_MOVES_ONLY) {
+  if (parameters.single_bp_moves_only) {
     for (i = 0; i < *length; ++i) {
       if ((*k)[i] == 0) {
-        distFromL = (*l)[i];
+        distance_from_end = (*l)[i];
       }
       
       if ((*l)[i] == 0) {
-        distFromK = (*k)[i];
+        distance_from_start = (*k)[i];
       }
     }
     
-    if (distFromK == distFromL && distFromK >= 0 && distFromL >= 0) {
-      bpDist = distFromK;
-    } else if (distFromK >= 0 && distFromL == -1) {
-      bpDist = distFromK;
-    } else if (distFromL >= 0 && distFromK == -1) {
-      bpDist = distFromL;
+    if (distance_from_start == distance_from_end && distance_from_start >= 0 && distance_from_end >= 0) {
+      bp_distance = distance_from_start;
+    } else if (distance_from_start >= 0 && distance_from_end == -1) {
+      bp_distance = distance_from_start;
+    } else if (distance_from_end >= 0 && distance_from_start == -1) {
+      bp_distance = distance_from_end;
     } else {
-      fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distFromL, distFromK);
+      fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distance_from_end, distance_from_start);
       printf("-3\n");
       exit(0);
     }
     
-    if (SEQ_LENGTH) {
+    if (parameters.sequence_length) {
       #ifdef DEBUG
         printf("\nAccessible positions (top-left is [0, 0]):\n");
       #endif
       
-      for (i = 0; i <= SEQ_LENGTH; ++i) {
-        for (j = 0; j <= SEQ_LENGTH; ++j) {
+      for (i = 0; i <= parameters.sequence_length; ++i) {
+        for (j = 0; j <= parameters.sequence_length; ++j) {
           if (
-            i + j >= bpDist &&
-            i + bpDist >= j &&
-            j + bpDist >= i &&
-            (i + j) % 2 == bpDist % 2
+            i + j >= bp_distance &&
+            i + bp_distance >= j &&
+            j + bp_distance >= i &&
+            (i + j) % 2 == bp_distance % 2
           ) {
             #ifdef DEBUG
               printf(" ");
@@ -101,30 +95,30 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
       *l = (int*)realloc(*l, validPositions * sizeof(int));
       *p = (double*)realloc(*p, validPositions * sizeof(double));
       
-      epsilonModifier = (EPSILON ? EPSILON : ALT_EPSILON / validPositions);
+      epsilon = (parameters.additive_epsilon ? parameters.additive_epsilon : parameters.distributed_epsilon / validPositions);
       
-      for (i = 0; i <= SEQ_LENGTH; ++i) {
-        for (j = 0; j <= SEQ_LENGTH; ++j) {
+      for (i = 0; i <= parameters.sequence_length; ++i) {
+        for (j = 0; j <= parameters.sequence_length; ++j) {
           if (
-            i + j >= bpDist &&
-            i + bpDist >= j &&
-            j + bpDist >= i &&
-            (i + j) % 2 == bpDist % 2
+            i + j >= bp_distance &&
+            i + bp_distance >= j &&
+            j + bp_distance >= i &&
+            (i + j) % 2 == bp_distance % 2
           ) {
-            inputDataPointer = -1;
+            input_data_index = -1;
             
-            for (m = 0; m < *length && inputDataPointer == -1; ++m) {
+            for (m = 0; m < *length && input_data_index == -1; ++m) {
               if (old_k[m] == i && old_l[m] == j) {
-                inputDataPointer = m;
+                input_data_index = m;
               }
             }
             
             (*k)[pointer] = i;
             (*l)[pointer] = j;
-            (*p)[pointer] = (inputDataPointer == -1 ? 0. : old_p[inputDataPointer]) + epsilonModifier;
+            (*p)[pointer] = (input_data_index == -1 ? 0. : old_p[input_data_index]) + epsilon;
             
-            if (!ENERGY_BASED) {
-              (*p)[pointer] /= 1. + epsilonModifier * validPositions;
+            if (!parameters.energy_based) {
+              (*p)[pointer] /= 1. + epsilon * validPositions;
             }
             
             pointer++;
@@ -139,130 +133,130 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
       *length = validPositions;
     }
     
-    numAdjacentMoves = (double*)malloc(*length * sizeof(double));
+    number_of_adjacent_moves = (double*)malloc(*length * sizeof(double));
     
     #ifdef DEBUG
       printf("\nFull dataset:\n");
     #endif
   
     for (i = 0; i < *length; ++i) {
-      numAdjacentMoves[i] = (double)numSingleBpMoves((*k)[i], (*l)[i], *k, *l, bpDist, *length);
+      number_of_adjacent_moves[i] = (double)number_of_permissible_single_bp_moves((*k)[i], (*l)[i], *k, *l, *length);
     
       #ifdef DEBUG
-        printf("%d\t%d\t%.15f\t%d possible moves\n", (*k)[i], (*l)[i], (*p)[i], (int)numAdjacentMoves[i]);
+        printf("%d\t%d\t%.15f\t%d possible moves\n", (*k)[i], (*l)[i], (*p)[i], (int)number_of_adjacent_moves[i]);
       #endif
     }
   }
   
-  transitionProbabilities = (double**)malloc(*length * sizeof(double*));
+  transition_probabilities = (double**)malloc(*length * sizeof(double*));
   
   for (i = 0; i < *length; ++i) {
-    rowSum                     = 0.;
-    transitionProbabilities[i] = (double*)calloc(*length, sizeof(double));
+    row_sum                     = 0.;
+    transition_probabilities[i] = (double*)calloc(*length, sizeof(double));
       
     for (j = 0; j < *length; ++j) {
       if (i != j) {
-        if (SINGLE_BP_MOVES_ONLY) {
+        if (parameters.single_bp_moves_only) {
           if ((int)abs((*k)[i] - (*k)[j]) == 1 && (int)abs((*l)[i] - (*l)[j]) == 1) {
-            if (HASTINGS) {
-              if (ENERGY_BASED) {
-                transitionProbabilities[i][j] = transitionRateFromEnergiesWithHastings((*p)[i], (*p)[j], numAdjacentMoves[i], numAdjacentMoves[j]);
+            if (parameters.hastings) {
+              if (parameters.energy_based) {
+                transition_probabilities[i][j] = transition_rate_from_energies_with_hastings((*p)[i], (*p)[j], number_of_adjacent_moves[i], number_of_adjacent_moves[j]);
               } else {
-                transitionProbabilities[i][j] = transitionRateFromProbabilitiesWithHastings((*p)[i], (*p)[j], numAdjacentMoves[i], numAdjacentMoves[j]);
+                transition_probabilities[i][j] = transition_rate_from_probabilities_with_hastings((*p)[i], (*p)[j], number_of_adjacent_moves[i], number_of_adjacent_moves[j]);
               }
             } else {
-              if (ENERGY_BASED) {
-                transitionProbabilities[i][j] = transitionRateFromEnergies((*p)[i], (*p)[j], numAdjacentMoves[i]);
+              if (parameters.energy_based) {
+                transition_probabilities[i][j] = transition_rate_from_energies((*p)[i], (*p)[j], number_of_adjacent_moves[i]);
               } else {
-                transitionProbabilities[i][j] = transitionRateFromProbabilities((*p)[i], (*p)[j], numAdjacentMoves[i]);
+                transition_probabilities[i][j] = transition_rate_from_probabilities((*p)[i], (*p)[j], number_of_adjacent_moves[i]);
               }
             }
           }
         } else {
-          if (ENERGY_BASED) {
-            transitionProbabilities[i][j] = transitionRateFromEnergies((*p)[i], (*p)[j], (double)(*length - 1));
+          if (parameters.energy_based) {
+            transition_probabilities[i][j] = transition_rate_from_energies((*p)[i], (*p)[j], (double)(*length - 1));
           } else {
-            transitionProbabilities[i][j] = transitionRateFromProbabilities((*p)[i], (*p)[j], (double)(*length - 1));
+            transition_probabilities[i][j] = transition_rate_from_probabilities((*p)[i], (*p)[j], (double)(*length - 1));
           }
         }
         
-        rowSum += transitionProbabilities[i][j];
+        row_sum += transition_probabilities[i][j];
       }
     }
     
-    transitionProbabilities[i][i] = 1 - rowSum;
+    transition_probabilities[i][i] = 1 - row_sum;
   }
   
-  return transitionProbabilities;
+  return transition_probabilities;
 }
 
-double computeMFPT(int* k, int* l, double **transitionProbabilities, unsigned long length, double* (*invert)(double*, int)) {
-  int i, j, x, y, startIndex, endIndex, inversionMatrixRowLength = length - 1;
-  double mfptFromStart, rowSum;
+double compute_mfpt(int* k, int* l, double **transition_probabilities, int length, GlobalParameters parameters) {
+  int i, j, x, y, start_index, end_index, inversion_matrix_row_length = length - 1;
+  double mfpt_from_start;
   
-  if (START_STATE == -1) {
-    for (i = 0, startIndex = -1; i < length; ++i) {
+  if (parameters.start_state == -1) {
+    for (i = 0, start_index = -1; i < length; ++i) {
       if (k[i] == 0) {
-        startIndex = i;
+        start_index = i;
       }
     }
   } else {
-    startIndex = START_STATE;
+    start_index = parameters.start_state;
   }
   
-  if (END_STATE == -1) {
-    for (i = 0, endIndex = -1; i < length; ++i) {
+  if (parameters.end_state == -1) {
+    for (i = 0, end_index = -1; i < length; ++i) {
       if (l[i] == 0) {
-        endIndex = i;
+        end_index = i;
       }
     }
   } else {
-    endIndex = END_STATE;
+    end_index = parameters.end_state;
   }
   
   #ifdef DEBUG
-    printf("\nstartIndex:\t%d\n", startIndex);
-    printf("endIndex:\t%d\n", endIndex);
+    printf("\nstart_index:\t%d\n", start_index);
+    printf("end_index:\t%d\n", end_index);
   #endif
   
-  if (startIndex < 0) {
+  if (start_index < 0) {
     #ifdef DEBUG
       fprintf(stderr, "We can not find any position in the energy grid correspondent to the starting state.\n");
     #endif
     return -1;
   }
   
-  if (endIndex < 0) {
+  if (end_index < 0) {
     #ifdef DEBUG
       fprintf(stderr, "We can not find any position in the energy grid correspondent to the stopping state.\n");
     #endif
     return -2;
   }
   
-  // If startIndex > endIndex, we need to shift to the left by one because the endIndex row / column is being removed.
-  if (startIndex > endIndex) {
-    startIndex--;
+  // If start_index > end_index, we need to shift to the left by one because the end_index row / column is being removed.
+  if (start_index > end_index) {
+    start_index--;
   }
   
-  double *mfpt            = (double*)calloc(inversionMatrixRowLength, sizeof(double));
-  double *inversionMatrix = (double*)malloc((int)pow((double)inversionMatrixRowLength, 2.) * sizeof(double));
+  double *mfpt             = (double*)calloc(inversion_matrix_row_length, sizeof(double));
+  double *inversion_matrix = (double*)malloc((int)pow((double)inversion_matrix_row_length, 2.) * sizeof(double));
   
   #ifdef SUPER_HEAVY_DEBUG
     printf("Inversion matrix:\n");
-    printf("i\tj\tx\ty\tinversionMatrix[x, y]\n");
+    printf("i\tj\tx\ty\tinversion_matrix[x, y]\n");
   #endif
   
   for (i = 0; i < length; ++i) {
     for (j = 0; j < length; ++j) { 
-      if (i != endIndex && j != endIndex) {
-        x = (i > endIndex ? i - 1 : i);
-        y = (j > endIndex ? j - 1 : j);
+      if (i != end_index && j != end_index) {
+        x = (i > end_index ? i - 1 : i);
+        y = (j > end_index ? j - 1 : j);
         
-        // Be VERY careful changing anything here. We throw out anything at base pair distance 0 (endIndex) from the second structure (the target of the MFPT calculation) and maximally distant from the first structure. Because of this, there's a chunk of indices that need to get shifted to the left by one, to keep the array tight (this is what x, y are doing). Hence, x and y are used for indexing into inversionMatrix and i, j are used for indexing into transitionProbabilities.
-        inversionMatrix[x * inversionMatrixRowLength + y] = (i == j ? 1 - transitionProbabilities[i][j] : -transitionProbabilities[i][j]);
+        // Be VERY careful changing anything here. We throw out anything at base pair distance 0 (end_index) from the second structure (the target of the MFPT calculation) and maximally distant from the first structure. Because of this, there's a chunk of indices that need to get shifted to the left by one, to keep the array tight (this is what x, y are doing). Hence, x and y are used for indexing into inversion_matrix and i, j are used for indexing into transition_probabilities.
+        inversion_matrix[x * inversion_matrix_row_length + y] = (i == j ? 1 - transition_probabilities[i][j] : -transition_probabilities[i][j]);
         
         #ifdef SUPER_HEAVY_DEBUG
-          printf("%d\t%d\t%d\t%d\t%f\n", i, j, x, y, inversionMatrix[x * inversionMatrixRowLength + y]);
+          printf("%d\t%d\t%d\t%d\t%f\n", i, j, x, y, inversion_matrix[x * inversion_matrix_row_length + y]);
         #endif
       }
     }
@@ -272,28 +266,28 @@ double computeMFPT(int* k, int* l, double **transitionProbabilities, unsigned lo
     #endif
   }
   
-  inversionMatrix = (*invert)(inversionMatrix, inversionMatrixRowLength);
+  inversion_matrix = parameters.pseudoinverse ? pseudoinverse(inversion_matrix, inversion_matrix_row_length) : inverse(inversion_matrix, inversion_matrix_row_length);
   
   #ifdef DEBUG
     printf("\nMFPT values for indices into the full dataset:\n");
   #endif
   
-  for (i = 0; i < inversionMatrixRowLength; ++i) {
-    for (j = 0; j < inversionMatrixRowLength; ++j) {
-      mfpt[i] += inversionMatrix[i * inversionMatrixRowLength + j];
+  for (i = 0; i < inversion_matrix_row_length; ++i) {
+    for (j = 0; j < inversion_matrix_row_length; ++j) {
+      mfpt[i] += inversion_matrix[i * inversion_matrix_row_length + j];
     }
     
     #ifdef DEBUG
-      // The business with this i < endIndex stuff is inorder to ensure that the output MFPT debug indices are representative of the input data.
-      printf("%d:\t%f\n", i < endIndex ? i : i + 1, mfpt[i]);
+      // The business with this i < end_index stuff is inorder to ensure that the output MFPT debug indices are representative of the input data.
+      printf("%d:\t%f\n", i < end_index ? i : i + 1, mfpt[i]);
     #endif
   }
     
-  mfptFromStart = mfpt[startIndex];
+  mfpt_from_start = mfpt[start_index];
   free(mfpt);
-  free(inversionMatrix);
+  free(inversion_matrix);
   
-  return mfptFromStart;
+  return mfpt_from_start;
 }
 
 double* inverse(double* a, int size) {
@@ -325,7 +319,6 @@ double* pseudoinverse(double* a, int size) {
   // Least-squares fit solution to B - Ax, where (in this case) A is square and B is the identity matrix.
   char trans;
   int i, m, n, nrhs, lda, ldb, lwork, info;
-  double rcond;
 
   trans = 'N';
   m     = size;
@@ -369,8 +362,8 @@ double* pseudoinverse(double* a, int size) {
   return(b);
 }
 
-int numSingleBpMoves(int x, int y, int* k, int* l, int bpDist, unsigned long length) {
-  int j, a, b, numMoves = 0;
+int number_of_permissible_single_bp_moves(int x, int y, int* k, int* l, int length) {
+  int j, a, b, num_moves = 0;
   
   for (j = 0; j < length; ++j) {
     a = k[j];
@@ -380,25 +373,25 @@ int numSingleBpMoves(int x, int y, int* k, int* l, int bpDist, unsigned long len
       // Because N(x, y) is restricted to entries in *k and *l, we *assume* the input data satisfies the triangle inequality and bounds.
       (int)abs(x - a) == 1 && (int)abs(y - b) == 1
     ) {
-      numMoves++;
+      num_moves++;
     }
   }
   
-  return numMoves;
+  return num_moves;
 }
 
-double transitionRateFromProbabilities(double from, double to, double numFrom) {
-  return MIN(1., to / from) / numFrom;
+double transition_rate_from_probabilities(double from, double to, double num_from) {
+  return MIN(1., to / from) / num_from;
 }
 
-double transitionRateFromEnergies(double from, double to, double numFrom) {
-  return MIN(1., exp(-(to - from) / RT)) / numFrom;
+double transition_rate_from_energies(double from, double to, double num_from) {
+  return MIN(1., exp(-(to - from) / RT)) / num_from;
 }
 
-double transitionRateFromProbabilitiesWithHastings(double from, double to, double numFrom, double numTo) {
-  return MIN(1., (numFrom / numTo) * (to / from)) / numFrom;
+double transition_rate_from_probabilities_with_hastings(double from, double to, double num_from, double num_to) {
+  return MIN(1., (num_from / num_to) * (to / from)) / num_from;
 }
 
-double transitionRateFromEnergiesWithHastings(double from, double to, double numFrom, double numTo) {
-  return MIN(1., (numFrom / numTo) * exp(-(to - from) / RT)) / numFrom;
+double transition_rate_from_energies_with_hastings(double from, double to, double num_from, double num_to) {
+  return MIN(1., (num_from / num_to) * exp(-(to - from) / RT)) / num_from;
 }

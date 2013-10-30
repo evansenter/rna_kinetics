@@ -1,8 +1,9 @@
 # Makefile for FFTbor2D
 
-CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wa,-q
+CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
 LDFLAGS           = -llapack -o
 BINDIR            = ~/bin # Change this to the BINDIR
+LIBDIR            = ~/lib # Change this to the LIBDIR
 CC                = gcc
 GCC_VERSION      := $(shell expr `$(CC) -dumpversion`)
 CC_MAJ_VERSION   := $(shell expr `echo $(GCC_VERSION) | cut -d . -f 1` \* 10000)
@@ -17,18 +18,23 @@ else
 	CCFLAGS += -O3
 endif
 
-RNAmfpt : rna_mfpt.o energy_grid_mfpt.o
-	$(CC) rna_mfpt.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
+RNAmfpt : rna_mfpt.o params.o energy_grid_mfpt.o
+	$(CC) rna_mfpt.o params.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
+	ar cr shared/libMFPT.a energy_grid_mfpt.o params.o
 	
-rna_mfpt.o : rna_mfpt.c rna_mfpt.h energy_grid_mfpt.h constants.h
+rna_mfpt.o : rna_mfpt.c rna_mfpt.h energy_grid_mfpt.h constants.h params.h
 	$(CC) $(CCFLAGS) rna_mfpt.c
 	
-energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h constants.h
+params.o : params.c params.h
+	$(CC) $(CCFLAGS) params.c
+	
+energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h constants.h params.h
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
 
 clean:
-	rm -f *.o RNAmfpt
+	rm -f *.o shared/*.a RNAmfpt
 
 install:
 	cp RNAmfpt $(BINDIR)
+	cp shared/libMFPT.a $(LIBDIR)
 	

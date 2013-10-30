@@ -1,5 +1,6 @@
-unsigned long count_lines(char*);
-void populate_arrays(char*, int*, int*, double*);
-char* read_csv_cell(char*, int);
-void parse_args(int, char*[]);
-void usage();
+int count_lines(char*);
+GlobalParameters init_params();
+void populate_arrays(char*, int*, int*, double*, GlobalParameters);
+GlobalParameters parse_args(int, char*[]);
+void error_handling(GlobalParameters);
+void debug_parameters(GlobalParameters);
