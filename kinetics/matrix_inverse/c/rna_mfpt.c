@@ -8,7 +8,7 @@
 
 short ENERGY_BASED, TRANSITION_MATRIX_INPUT, PSEUDOINVERSE, SINGLE_BP_MOVES_ONLY, HASTINGS;
 int START_STATE, END_STATE, SEQ_LENGTH;
-double EPSILON, RT = 1e-3 * 1.9872041 * (273.15 + 37);
+double EPSILON, ALT_EPSILON, RT = 1e-3 * 1.9872041 * (273.15 + 37);
 
 int main(int argc, char* argv[]) {
   unsigned long line_count, row_length;
@@ -148,6 +148,7 @@ void parse_args(int argc, char* argv[]) {
   HASTINGS                = 0;
   SEQ_LENGTH              = 0;
   EPSILON                 = 0;
+  ALT_EPSILON             = 0;
   START_STATE             = -1;
   END_STATE               = -1;
   
@@ -211,17 +212,21 @@ void parse_args(int argc, char* argv[]) {
           usage();
         } else if (!sscanf(argv[++i], "%lf", &EPSILON)) {
           usage();
-        } else if (SEQ_LENGTH <= 0) {
+        } else if (EPSILON <= 0 || SEQ_LENGTH <= 0) {
+          usage();
+        }
+      } else if (strcmp(argv[i], "-Q") == 0) {
+        if (i == argc - 1) {
+          usage();
+        } else if (!sscanf(argv[++i], "%lf", &ALT_EPSILON)) {
+          usage();
+        } else if (ALT_EPSILON <= 0 || SEQ_LENGTH <= 0) {
           usage();
         }
       } else {
         usage();
       }
     }
-  }
-  
-  if (SEQ_LENGTH && !EPSILON) {
-    EPSILON = 1e-8;
   }
   
   #ifdef DEBUG
@@ -232,6 +237,7 @@ void parse_args(int argc, char* argv[]) {
     printf("HASTINGS\t\t%hd\n", HASTINGS);
     printf("SEQ_LENGTH\t\t%d\n", SEQ_LENGTH);
     printf("EPSILON\t\t\t%.15f\n", EPSILON);
+    printf("ALT_EPSILON\t\t\t%.15f\n", ALT_EPSILON);
     printf("START_STATE\t\t%d\n", START_STATE);
     printf("END_STATE\t\t%d\n", END_STATE);
   #endif
@@ -246,8 +252,23 @@ void parse_args(int argc, char* argv[]) {
     error++;
   }
   
+  if (SINGLE_BP_MOVES_ONLY && ENERGY_BASED && (SEQ_LENGTH || EPSILON)) {
+    fprintf(stderr, "Error: If the -X and -E flags are provided, -N and -O are not permitted!\n");
+    error++;
+  }
+  
   if (HASTINGS && !SINGLE_BP_MOVES_ONLY) {
     fprintf(stderr, "Error: If the -H flag is provided, -X must be explicitly set!\n");
+    error++;
+  }
+  
+  if (SEQ_LENGTH && !(EPSILON || ALT_EPSILON)) {
+    fprintf(stderr, "Error: If the -N flag is provided, -O or -Q must be provided!\n");
+    error++;
+  }
+  
+  if (EPSILON && ALT_EPSILON) {
+    fprintf(stderr, "Error: The -O and -Q flags are not permitted together!\n");
     error++;
   }
   
@@ -274,15 +295,17 @@ void usage() {
   
   fprintf(stderr, "-A\tstart state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the first column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the start state.\n");
     
-  fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, p_b - p_a) / n) rather than (min(1, p_b / p_a) / n).\n");
+  fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, exp(-(E_b - E_a) / RT) / n) rather than (min(1, p_b / p_a) / n).\n");
   
   fprintf(stderr, "-H\tHastings adjustment, the default is disabled. If this flag is provided, the input must be in the form of an energy grid, and only diagonally adjacent moves are permitted (in the all-to-all transition case, N(X) / N(Y) == 1). Calculating N(X) and N(Y) will respect grid boundaries and the triangle equality, and the basepair distance between the two structures for kinetics is inferred from the energy grid.\n");
   
-  fprintf(stderr, "-N\tsequence length, the default is disabled. This flag represents the sequence length of the sequence on which kinetics is being performed. It is used in conjunction with the -O flag to ensure that the graph is fully connected. If -O is not explicitly set, it is taken to be 1e-8.\n");
+  fprintf(stderr, "-N\tsequence length, the default is disabled. This flag represents the sequence length of the sequence on which kinetics is being performed. It is used in conjunction with the -O flag to ensure that the graph is fully connected. If -O is not explicitly set, the -Q flag must be set.\n");
   
   fprintf(stderr, "-O\tepsilon, the default is disabled. This flag should be a %%f-parseable epsilon value added to *all* positions in the energy grid (including valid positions not present in the input), which is then renormalized and used to ensure that the graph is fully connected.\n");
   
-  fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n");
+  fprintf(stderr, "-P\tpseudoinverse, the default is disabled. If this flag is provided, the Moore-Penrose pseudoinverse is computed for the transition probability matrix, rather than the true inverse.\n")
+    ;
+  fprintf(stderr, "-Q\talternative epsilon, the default is disabled. If this flag is provided, each accessible position is increased by .01 / num_accessible_positions, and then renormalized to ensure that all valid positions have a small non-zero probability. This flag is mutually exclusive with -O.\n");
   
   fprintf(stderr, "-T\ttransition matrix input, the default is disabled. If this flag is provided, the input is expected to be a transition probability matrix, rather than a 2D energy grid. In this case, the first two columns in the CSV file are row-order indices into the transition probability matrix, and the third (final) column is the transition probability of that cell.\n");
   

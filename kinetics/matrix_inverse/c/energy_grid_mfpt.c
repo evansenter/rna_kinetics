@@ -12,15 +12,17 @@
   extern "C" {
     void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
     void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);  
+    int dgels_(char *t, int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *work, int *lwork, int *info);
     int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
   }
 #else
   extern void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
   extern void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
+  extern int dgels_(char *t, int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *work, int *lwork, int *info);
   extern int dgelsd_(int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *s, double *rcond, int *rank, double *work, int *lwork, int *iwork, int *info);
 #endif
   
-extern double RT, EPSILON;
+extern double RT, EPSILON, ALT_EPSILON;
 extern short ENERGY_BASED, SINGLE_BP_MOVES_ONLY, HASTINGS;
 extern int START_STATE, END_STATE, SEQ_LENGTH;
 
@@ -29,7 +31,7 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
   unsigned long validPositions = 0;
   int* old_k;
   int* old_l;
-  double rowSum;
+  double rowSum, epsilonModifier;
   double* old_p;
   double* numAdjacentMoves;
   double** transitionProbabilities;
@@ -45,8 +47,12 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
       }
     }
     
-    if (distFromK == distFromL && distFromK >= 0) {
+    if (distFromK == distFromL && distFromK >= 0 && distFromL >= 0) {
       bpDist = distFromK;
+    } else if (distFromK >= 0 && distFromL == -1) {
+      bpDist = distFromK;
+    } else if (distFromL >= 0 && distFromK == -1) {
+      bpDist = distFromL;
     } else {
       fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distFromL, distFromK);
       printf("-3\n");
@@ -95,6 +101,8 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
       *l = (int*)realloc(*l, validPositions * sizeof(int));
       *p = (double*)realloc(*p, validPositions * sizeof(double));
       
+      epsilonModifier = (EPSILON ? EPSILON : ALT_EPSILON / validPositions);
+      
       for (i = 0; i <= SEQ_LENGTH; ++i) {
         for (j = 0; j <= SEQ_LENGTH; ++j) {
           if (
@@ -113,10 +121,10 @@ double** convertEnergyGridToTransitionMatrix(int** k, int** l, double** p, unsig
             
             (*k)[pointer] = i;
             (*l)[pointer] = j;
-            (*p)[pointer] = (inputDataPointer == -1 ? 0. : old_p[inputDataPointer]) + EPSILON;
+            (*p)[pointer] = (inputDataPointer == -1 ? 0. : old_p[inputDataPointer]) + epsilonModifier;
             
             if (!ENERGY_BASED) {
-              (*p)[pointer] /= 1. + EPSILON * validPositions;
+              (*p)[pointer] /= 1. + epsilonModifier * validPositions;
             }
             
             pointer++;
@@ -315,65 +323,48 @@ double* inverse(double* a, int size) {
 
 double* pseudoinverse(double* a, int size) {
   // Least-squares fit solution to B - Ax, where (in this case) A is square and B is the identity matrix.
-  int i, j, m, n, nrhs, lda, ldb, rank, nlvl, lwork, liwork, info;
+  char trans;
+  int i, m, n, nrhs, lda, ldb, lwork, info;
   double rcond;
 
+  trans = 'N';
   m     = size;
   n     = m;
   nrhs  = m;
   lda   = m;
   ldb   = m;
-  rcond = -1.;
-  
-  // NLVL = MAX(0, INT(LOG_2(MIN(M, N) / (SMLSIZ + 1))) + 1)
-  nlvl = MAX(0, (int)(log2(MIN(m, n) / (SMLSIZ + 1)) + 1));
-  
-  // LWORK [when M >= N] = MAX(1, 12 * M + 2 * M * SMLSIZ + 8 * M * NLVL + M * NRHS + (SMLSIZ + 1) ** 2)
-  lwork = MAX(1, 12 * m + 2 * m * SMLSIZ + 8 * m * nlvl + m * nrhs + (int)pow((double)(SMLSIZ + 1), 2.));
-  
-  // LIWORK = 3 * MIN(M, N) * NLVL + 11 * MIN(M, N)
-  liwork = 3 * MIN(m, n) * nlvl + 11 * MIN(m, n);
   
   double* b = (double*)calloc(ldb * nrhs, sizeof(double));
   for (i = 0; i < ldb; ++i) {
     b[i * nrhs + i] = 1.;
   }
-  double* s    = (double*)malloc(MIN(m, n) * sizeof(double));
-  double* work = (double*)malloc(MAX(1, lwork) * sizeof(double));
-  int* iwork   = (int*)malloc(MAX(1, liwork) * sizeof(int));
   
   #ifdef SUPER_HEAVY_DEBUG
-    printf("dgelsd_(&n, &n, &nrhs, a, &lda, b, &ldb, s, &rcond, &rank, work, &lwork, iwork, &info)\n\n");
-    printf("nlvl:\t%d\n", nlvl);
-    printf("lwork:\t%d\n", lwork);
-    printf("liwork:\t%d\n", liwork);
+    printf("dgels_(&trans, &m, &n, &nrhs, a, &lda, b, &ldb, work, &lwork, &info)\n\n");
   #endif
+    
+  lwork        = -1;
+  double* work = (double*)malloc(MAX(1, lwork) * sizeof(double));
   
-  dgelsd_(&n, &n, &nrhs, a, &lda, b, &ldb, s, &rcond, &rank, work, &lwork, iwork, &info);
+  dgels_(&trans, &m, &n, &nrhs, a, &lda, b, &ldb, work, &lwork, &info);
+  
+  lwork = (int)work[0];
+  
+  #ifdef SUPER_HEAVY_DEBUG
+    printf("workspace query (lwork):\t%d\n", lwork);
+  #endif
+    
+  free(work);
+  
+  work = (double*)malloc(MAX(1, lwork) * sizeof(double));
+  
+  dgels_(&trans, &m, &n, &nrhs, a, &lda, b, &ldb, work, &lwork, &info);
   
   #ifdef DEBUG
     printf("info:\t%d\n", info);
   #endif
   
-  #ifdef SUPER_HEAVY_DEBUG
-    printf("least-squares fit (ldb):\t");
-    for (i = 0; i < ldb; ++i) {
-      printf("%+.8f ", b[i * nrhs + i]);
-    }
-    printf("\n");
-  
-    printf("s:\t");
-    for (i = 0; i < n; ++i) {
-      printf("%+.8f ", s[i]);
-    }
-    printf("\n");
-  
-    printf("rank:\t%d\n", rank);
-  #endif
-  
-  free(s);
   free(work);
-  free(iwork);
   
   return(b);
 }
