@@ -8,6 +8,7 @@ GlobalParameters init_params() {
     .start_state             = -1,
     .end_state               = -1,
     .sequence_length         = 0,
+    .bp_dist                 = 0,
     .energy_based            = 0,
     .transition_matrix_input = 0,
     .pseudoinverse           = 0,
@@ -85,6 +86,14 @@ GlobalParameters parse_args(int argc, char* argv[]) {
         } else if (!sscanf(argv[++i], "%d", &(parameters.sequence_length))) {
           usage();
         } else if (parameters.sequence_length <= 0) {
+          usage();
+        }
+      } else if (strcmp(argv[i], "-D") == 0) {
+        if (i == argc - 1) {
+          usage();
+        } else if (!sscanf(argv[++i], "%d", &(parameters.bp_dist))) {
+          usage();
+        } else if (parameters.bp_dist <= 0) {
           usage();
         }
       } else if (strcmp(argv[i], "-O") == 0) {
@@ -216,6 +225,8 @@ void usage() {
   fprintf(stderr, "Options include the following:\n");
   
   fprintf(stderr, "-A\tstart state, the default is -1 (inferred from input data as the first row in the CSV whose entry in the first column is 0). If provided, should indicate the 0-indexed line in the input CSV file representing the start state.\n");
+  
+  fprintf(stderr, "-D\tstart/end distance, the default is disabled. When provided, indicates the base pair distance between the starting / ending structures. This flag is used in conjunction with the -Q flag, and is needed in cases when the base pair distance between the two structures can't be inferred from the input grid.\n");
     
   fprintf(stderr, "-E\tenergy-based transitions, the default is disabled. If this flag is provided, the transition from state a to b will be calculated as (min(1, exp(-(E_b - E_a) / RT) / n) rather than (min(1, p_b / p_a) / n).\n");
   

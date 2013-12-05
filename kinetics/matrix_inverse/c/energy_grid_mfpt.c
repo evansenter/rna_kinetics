@@ -31,26 +31,30 @@ double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, 
   double** transition_probabilities;
   
   if (parameters.single_bp_moves_only) {
-    for (i = 0; i < *length; ++i) {
-      if ((*k)[i] == 0) {
-        distance_from_end = (*l)[i];
-      }
-      
-      if ((*l)[i] == 0) {
-        distance_from_start = (*k)[i];
-      }
-    }
-    
-    if (distance_from_start == distance_from_end && distance_from_start >= 0 && distance_from_end >= 0) {
-      bp_distance = distance_from_start;
-    } else if (distance_from_start >= 0 && distance_from_end == -1) {
-      bp_distance = distance_from_start;
-    } else if (distance_from_end >= 0 && distance_from_start == -1) {
-      bp_distance = distance_from_end;
+    if (parameters.bp_dist) {
+      bp_distance = parameters.bp_dist;
     } else {
-      fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0).\n", distance_from_end, distance_from_start);
-      printf("-3\n");
-      exit(0);
+      for (i = 0; i < *length; ++i) {
+        if ((*k)[i] == 0) {
+          distance_from_end = (*l)[i];
+        }
+      
+        if ((*l)[i] == 0) {
+          distance_from_start = (*k)[i];
+        }
+      }
+    
+      if (distance_from_start == distance_from_end && distance_from_start >= 0 && distance_from_end >= 0) {
+        bp_distance = distance_from_start;
+      } else if (distance_from_start >= 0 && distance_from_end == -1) {
+        bp_distance = distance_from_start;
+      } else if (distance_from_end >= 0 && distance_from_start == -1) {
+        bp_distance = distance_from_end;
+      } else {
+        fprintf(stderr, "Can't infer the input structure distances for the energy grid. We found (0, %d) and (%d, 0). Consider using the -D flag to manually set the base pair distance between the two structures.\n", distance_from_end, distance_from_start);
+        printf("-3\n");
+        exit(0);
+      }
     }
     
     if (parameters.sequence_length) {
