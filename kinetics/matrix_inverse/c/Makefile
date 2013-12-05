@@ -1,7 +1,5 @@
-# Makefile for FFTbor2D
-
 CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
-LDFLAGS           = -llapack -o
+LDFLAGS           = -lgomp -llapack -o
 BINDIR            = ~/bin # Change this to the BINDIR
 LIBDIR            = ~/lib # Change this to the LIBDIR
 CC                = gcc
@@ -30,9 +28,15 @@ params.o : params.c params.h
 	
 energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h constants.h params.h
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
+	
+RNAspectral : spectral_grid.o
+	$(CC) spectral_grid.o -lRNA $(LDFLAGS) RNAspectral
+	
+spectral_grid.o : spectral_grid.c spectral_grid.h constants.h
+	$(CC) $(CCFLAGS) spectral_grid.c
 
 clean:
-	rm -f *.o shared/*.a RNAmfpt
+	rm -f *.o shared/*.a RNAmfpt RNAspectral
 
 install:
 	cp RNAmfpt $(BINDIR)

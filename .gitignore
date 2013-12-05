@@ -8,3 +8,5 @@ test*
 **/*.so
 **/*.o
 **/RNAmfpt
+**/RNAspectral
+
