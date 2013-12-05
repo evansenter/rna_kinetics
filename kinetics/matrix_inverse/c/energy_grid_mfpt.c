@@ -5,10 +5,6 @@
 #include "params.h"
 #include "energy_grid_mfpt.h"
 
-#define RT (1e-3 * 1.9872041 * (273.15 + 37))
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-
 #ifdef __cplusplus
   extern "C" {
     void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
