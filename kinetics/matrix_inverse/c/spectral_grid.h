@@ -5,4 +5,6 @@ typedef struct {
 
 extern SOLUTION* subopt(char*, char*, int, FILE*);
 
-double** convert_structures_to_transition_matrix(SOLUTION*, int);
+double* convert_structures_to_transition_matrix(SOLUTION*, int);
+double* convert_transition_matrix_to_eigenvectors(double*, int);
+void print_matrix(double*, int);

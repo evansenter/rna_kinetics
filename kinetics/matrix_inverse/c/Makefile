@@ -1,5 +1,5 @@
-CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
-LDFLAGS           = -lgomp -llapack -o
+CCFLAGS           = -I/usr/local/opt/lapack/include -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
+LDFLAGS           = -lgomp -L/usr/local/opt/lapack/lib -L/usr/local/Cellar/gcc49/4.9-20131110/lib/gcc/x86_64-apple-darwin13.0.0/4.9.0 -lgfortran -llapacke -lgsl -o
 BINDIR            = ~/bin # Change this to the BINDIR
 LIBDIR            = ~/lib # Change this to the LIBDIR
 CC                = gcc
