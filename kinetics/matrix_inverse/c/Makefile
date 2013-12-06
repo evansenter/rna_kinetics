@@ -1,8 +1,8 @@
-CCFLAGS           = -I/usr/local/opt/lapack/include -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
-LDFLAGS           = -lm -lgomp -L/usr/local/opt/lapack/lib -llapacke -lgslcblas -lgsl -o
+CCFLAGS           = -c -std=c99 -pedantic -fopenmp -funroll-loops -Wall -Wextra -Wa,-q
+LDFLAGS           = -lm -lgomp -llapack -L/usr/local/include -llapacke -lgslcblas -lgsl -o
 BINDIR            = ~/bin # Change this to the BINDIR
 LIBDIR            = ~/lib # Change this to the LIBDIR
-CC                = gcc
+CC                = gcc-4.9
 GCC_VERSION      := $(shell expr `$(CC) -dumpversion`)
 CC_MAJ_VERSION   := $(shell expr `echo $(GCC_VERSION) | cut -d . -f 1` \* 10000)
 CC_MIN_VERSION   := $(shell expr `echo $(GCC_VERSION) | cut -d . -f 2` \* 100)
