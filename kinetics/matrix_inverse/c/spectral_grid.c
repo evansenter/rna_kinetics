@@ -7,6 +7,7 @@
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_linalg.h>
 #include "constants.h"
+#include "spectral_params.h"
 #include "spectral_grid.h"
 
 #define TIMING(start, stop, task) printf("Time in ms for %s: %.2f\n", task, (double)(((stop.tv_sec * 1000000 + stop.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)) / 1000.0));
@@ -17,12 +18,16 @@ int main(int argc, char* argv[]) {
     gettimeofday(&fullStart, NULL);
     gettimeofday(&start, NULL);
   #endif
+    
+  SPECTRAL_PARAMS parameters;
+  parameters = parse_args(argc, argv);
   
-  int i, seq_length, empty_index = -1, mfe_index = -1, num_structures = 0;
+  int i, seq_length, from_index = -1, to_index = -1, num_structures = 0;
+  double step_counter, step_size;
   double* transition_matrix;
   EIGENSYSTEM eigensystem;
   
-  char* sequence  = argv[1];
+  char* sequence  = parameters.sequence;
   seq_length      = strlen(sequence);
   char* empty_str = malloc(seq_length * sizeof(char));
   char* mfe_str   = malloc(seq_length * sizeof(char));
@@ -39,19 +44,31 @@ int main(int argc, char* argv[]) {
   }
   
   for (i = 0; i < num_structures; ++i) {
-    if (!strcmp(empty_str, all_structures[i].structure)) {
-      empty_index = i;
+    if (parameters.start_structure != NULL) {
+      if (!strcmp(parameters.start_structure, all_structures[i].structure)) {
+        from_index = i;
+      }
+    } else {
+      if (!strcmp(empty_str, all_structures[i].structure)) {
+        from_index = i;
+      }
     }
     
-    if (!strcmp(mfe_str, all_structures[i].structure)) {
-      mfe_index = i;
+    if (parameters.end_structure != NULL) {
+      if (!strcmp(parameters.end_structure, all_structures[i].structure)) {
+        to_index = i;
+      }
+    } else {
+      if (!strcmp(mfe_str, all_structures[i].structure)) {
+        to_index = i;
+      }
     }
   }
   
   #ifdef DEBUG
-    printf("%s\n", argv[1]);
-    printf("%s\t(%d)\n", empty_str, empty_index);
-    printf("%s\t(%d)\n", mfe_str, mfe_index);
+    printf("%s\n", sequence);
+    printf("%s\t(%d)\n", empty_str, from_index);
+    printf("%s\t(%d)\n", mfe_str, to_index);
     printf("%d\n", num_structures);
   #endif
   
@@ -103,8 +120,8 @@ int main(int argc, char* argv[]) {
     print_matrix("eigensystem.inverse_vectors", eigensystem.inverse_vectors, num_structures);
   #endif
     
-  for (i = -40; i <= 10; ++i) {
-    printf("%f\t%+.6f\n", pow(10, i / 10.), probability_at_time(eigensystem, pow(10, i / 10.), empty_index, mfe_index, num_structures));
+  for (step_counter = parameters.start_time; step_counter <= parameters.end_time + 1e-8; step_counter += parameters.step_size) {
+    printf("%f\t%+.6f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
   }
   
   #ifdef DEBUG
@@ -201,7 +218,7 @@ void invert_matrix(EIGENSYSTEM eigensystem, int num_structures) {
   gsl_permutation_free(permutation);
 }
 
-double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int empty_index, int target_index, int num_structures) {
+double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int from_index, int target_index, int num_structures) {
   // This code is hard-wired to only consider the kinetics for folding from the empty structure, to save an order of complexity.
   
   int i;
@@ -210,7 +227,7 @@ double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int empty_
   for (i = 0; i < num_structures; ++i) {
     cumulative_probability += 
       eigensystem.vectors[target_index * num_structures + i] * 
-      eigensystem.inverse_vectors[i * num_structures + empty_index] * 
+      eigensystem.inverse_vectors[i * num_structures + from_index] * 
       exp(eigensystem.values[i] * timepoint);
   }
   

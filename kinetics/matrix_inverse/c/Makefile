@@ -29,11 +29,14 @@ params.o : params.c params.h
 energy_grid_mfpt.o : energy_grid_mfpt.c energy_grid_mfpt.h constants.h params.h
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
 	
-RNAspectral : spectral_grid.o
-	$(CC) spectral_grid.o -lRNA $(LDFLAGS) RNAspectral
+RNAspectral : spectral_grid.o spectral_params.o
+	$(CC) spectral_grid.o spectral_params.o -lRNA $(LDFLAGS) RNAspectral
 	
-spectral_grid.o : spectral_grid.c spectral_grid.h constants.h
+spectral_grid.o : spectral_grid.c spectral_grid.h spectral_params.h constants.h
 	$(CC) $(CCFLAGS) spectral_grid.c
+	
+spectral_params.o : spectral_params.c spectral_params.h
+	$(CC) $(CCFLAGS) spectral_params.c
 
 clean:
 	rm -f *.o shared/*.a RNAmfpt RNAspectral
