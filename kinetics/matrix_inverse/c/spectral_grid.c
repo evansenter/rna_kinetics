@@ -63,6 +63,38 @@ double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int nu
 }
 
 double* convert_transition_matrix_to_eigenvectors(double* transition_matrix, int num_structures) {
+  int i, j;
+
+  gsl_matrix_view matrix_view = gsl_matrix_view_array(transition_matrix, num_structures, num_structures);  
+  gsl_vector_complex *eigenvalues     = gsl_vector_complex_alloc(num_structures);
+  gsl_matrix_complex *eigenvectors    = gsl_matrix_complex_alloc(num_structures, num_structures);
+  
+  gsl_eigen_nonsymmv_workspace *workspace = gsl_eigen_nonsymmv_alloc(num_structures);
+  gsl_eigen_nonsymmv_params(1, workspace);
+  gsl_eigen_nonsymmv(&matrix_view.matrix, eigenvalues, eigenvectors, workspace);
+  gsl_eigen_nonsymmv_free(workspace);
+  
+  gsl_eigen_nonsymmv_sort(eigenvalues, eigenvectors, GSL_EIGEN_SORT_ABS_DESC);
+  
+  printf("\n");
+  
+  for (i = 0; i < num_structures; ++i) {
+    gsl_complex eigenvalue = gsl_vector_complex_get(eigenvalues, i);
+    printf("%g, %g\n", GSL_REAL(eigenvalue), GSL_IMAG(eigenvalue));
+  }
+  
+  printf("\n\n");
+  
+  for (i = 0; i < num_structures; ++i) {
+    gsl_vector_complex_view eigenvector = gsl_matrix_complex_column(eigenvectors, i);
+    
+    for (j = 0; j < num_structures; ++j) {
+      gsl_complex eigenvector_entry = gsl_vector_complex_get(&eigenvector.vector, j);
+      printf("%g, %g\n", GSL_REAL(eigenvector_entry), GSL_IMAG(eigenvector_entry));
+    }
+    
+    printf("\n");
+  }
 }
 
 void print_matrix(double* matrix, int length) {
@@ -70,7 +102,7 @@ void print_matrix(double* matrix, int length) {
   
   for (i = 0; i < length; ++i) {
     for (j = 0; j < length; ++j) {
-      printf("%+.2f\t", matrix[i * length + j]);
+      printf("%+.8f\t", matrix[i * length + j]);
     }
     printf("\n");
   }
