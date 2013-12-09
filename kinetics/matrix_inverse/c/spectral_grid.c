@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
   parameters = parse_args(argc, argv);
   
   int i, seq_length, from_index = -1, to_index = -1, num_structures = 0;
-  double step_counter, step_size;
+  double step_counter;
   double* transition_matrix;
   EIGENSYSTEM eigensystem;
   
