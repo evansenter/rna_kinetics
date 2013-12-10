@@ -1,5 +1,5 @@
-CFLAGS = -Wall -fPIC -c -O3
-LDFLAGS = -lm -lRNA
+CFLAGS = -Wall -fPIC -c -O3 -fopenmp
+LDFLAGS = -lm -lgomp -lRNA
 CC = gcc
 
 a.out : rnaeval_r_wrapper.o
