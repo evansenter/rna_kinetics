@@ -11,6 +11,8 @@
 #include "spectral_grid.h"
 
 #define TIMING(start, stop, task) printf("Time in ms for %s: %.2f\n", task, (double)(((stop.tv_sec * 1000000 + stop.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)) / 1000.0));
+
+extern double temperature;
   
 int main(int argc, char* argv[]) {
   #ifdef DEBUG
@@ -22,19 +24,20 @@ int main(int argc, char* argv[]) {
   SPECTRAL_PARAMS parameters;
   parameters = parse_args(argc, argv);
   
-  int i, seq_length, from_index = -1, to_index = -1, num_structures = 0;
+  int i, seq_length, from_index = -1, to_index = -1, empty_index = -1, num_structures = 0;
   double step_counter;
   double* transition_matrix;
   EIGENSYSTEM eigensystem;
   
   char* sequence  = parameters.sequence;
   seq_length      = strlen(sequence);
-  char* empty_str = malloc(seq_length * sizeof(char));
-  char* mfe_str   = malloc(seq_length * sizeof(char));
+  char* empty_str = malloc((seq_length + 1) * sizeof(char));
+  char* mfe_str   = malloc((seq_length + 1) * sizeof(char));
   
   for (i = 0; i < seq_length; ++i) {
     empty_str[i] = '.';
   }
+  empty_str[i] = '\0';
   
   (double)fold(sequence, mfe_str);
   
@@ -50,7 +53,8 @@ int main(int argc, char* argv[]) {
       }
     } else {
       if (!strcmp(empty_str, all_structures[i].structure)) {
-        from_index = i;
+        parameters.start_structure = all_structures[i].structure;
+        from_index                 = i;
       }
     }
     
@@ -60,17 +64,22 @@ int main(int argc, char* argv[]) {
       }
     } else {
       if (!strcmp(mfe_str, all_structures[i].structure)) {
-        to_index = i;
+        parameters.end_structure = all_structures[i].structure;
+        to_index                 = i;
       }
+    }
+    
+    if (!strcmp(empty_str, all_structures[i].structure)) {
+      empty_index = i;
     }
   }
   
-  #ifdef DEBUG
-    printf("%s\n", sequence);
-    printf("%s\t(%d)\n", empty_str, from_index);
-    printf("%s\t(%d)\n", mfe_str, to_index);
-    printf("%d\n", num_structures);
-  #endif
+  if (parameters.verbose) {
+    printf("sequence:\t%s\n", sequence);
+    printf("start:\t\t%s\t(%d)\n", parameters.start_structure, from_index);
+    printf("stop:\t\t%s\t(%d)\n", parameters.end_structure, to_index);
+    printf("num str:\t%d\n", num_structures);
+  }
   
   #ifdef SUPER_HEAVY_DEBUG
     for (i = 0; i < num_structures; ++i) {
@@ -120,8 +129,8 @@ int main(int argc, char* argv[]) {
     print_matrix("eigensystem.inverse_vectors", eigensystem.inverse_vectors, num_structures);
   #endif
     
-  for (step_counter = parameters.start_time; step_counter <= parameters.end_time + 1e-8; step_counter += parameters.step_size) {
-    printf("%f\t%+.6f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
+  for (step_counter = 0; step_counter <= parameters.end_time; step_counter += parameters.step_size) {
+    printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, step_counter, from_index, to_index, num_structures));
   }
   
   #ifdef DEBUG
@@ -136,20 +145,28 @@ int main(int argc, char* argv[]) {
   
 double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int num_structures) {  
   int i, j;
-  double row_sum;
+  double col_sum;
   double* transition_matrix = malloc(num_structures * num_structures * sizeof(double));
   
   for (i = 0; i < num_structures; ++i) {
-    row_sum = 0;
+    col_sum = 0;
     
     for (j = 0; j < num_structures; ++j) {
       if (i != j) {
-        transition_matrix[i + num_structures * j] = MIN(1., exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT));
-        row_sum += transition_matrix[i + num_structures * j];
+        transition_matrix[i + num_structures * j] = exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT);
+        col_sum += transition_matrix[i + num_structures * j];
+        
+        #ifdef INSANE_DEBUG
+          printf("%d\t%d\t%.4e\n", i, j, transition_matrix[i + num_structures * j]);
+        #endif
       }
     }
     
-    transition_matrix[i * num_structures + i] = -row_sum;
+    #ifdef INSANE_DEBUG
+      printf("%d col_sum:\t%.4e\n\n", i, col_sum);
+    #endif
+    
+    transition_matrix[i * num_structures + i] = -col_sum;
   }
   
   return transition_matrix;
@@ -173,7 +190,6 @@ EIGENSYSTEM convert_transition_matrix_to_eigenvectors(double* transition_matrix,
   gsl_eigen_nonsymmv(&matrix_view.matrix, eigenvalues, eigenvectors, workspace);
   gsl_eigen_nonsymmv_free(workspace);
   
-  gsl_eigen_nonsymmv_sort(eigenvalues, eigenvectors, GSL_EIGEN_SORT_ABS_DESC);
   
   for (i = 0; i < num_structures; ++i) {
     eigensystem.values[i]               = GSL_REAL(gsl_vector_complex_get(eigenvalues, i));
@@ -218,8 +234,8 @@ void invert_matrix(EIGENSYSTEM eigensystem, int num_structures) {
   gsl_permutation_free(permutation);
 }
 
-double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int from_index, int target_index, int num_structures) {
-  // This code is hard-wired to only consider the kinetics for folding from the empty structure, to save an order of complexity.
+double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int start_index, int target_index, int num_structures) {
+  // This function is hard-wired to only consider the kinetics for folding from a distribution where p_{0}(start_index) == 1.
   
   int i;
   double cumulative_probability = 0;
@@ -227,7 +243,7 @@ double probability_at_time(EIGENSYSTEM eigensystem, double timepoint, int from_i
   for (i = 0; i < num_structures; ++i) {
     cumulative_probability += 
       eigensystem.vectors[target_index * num_structures + i] * 
-      eigensystem.inverse_vectors[i * num_structures + from_index] * 
+      eigensystem.inverse_vectors[i * num_structures + start_index] * 
       exp(eigensystem.values[i] * timepoint);
   }
   
