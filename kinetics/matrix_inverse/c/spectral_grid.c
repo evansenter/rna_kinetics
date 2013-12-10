@@ -130,9 +130,9 @@ int main(int argc, char* argv[]) {
     print_matrix("eigensystem.vectors", eigensystem.vectors, num_structures);
     print_matrix("eigensystem.inverse_vectors", eigensystem.inverse_vectors, num_structures);
   #endif
-    
-  for (step_counter = 0; step_counter <= parameters.end_time; step_counter += parameters.step_size) {
-    printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, step_counter, from_index, to_index, num_structures));
+  
+  for (step_counter = parameters.start_time; step_counter <= parameters.end_time; step_counter += parameters.step_size) {
+    printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
   }
   
   #ifdef DEBUG

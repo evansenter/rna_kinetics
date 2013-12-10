@@ -5,6 +5,7 @@ typedef struct {
   char* sequence;
   char* start_structure;
   char* end_structure;
+  double start_time;
   double end_time;
   double step_size;
   int lonely_bp;

@@ -12,8 +12,9 @@ SPECTRAL_PARAMS init_params() {
     .start_structure = NULL,
     .end_structure   = NULL,
     .lonely_bp       = 0,
-    .end_time        = 1e-1,
-    .step_size       = 1e-4
+    .start_time      = -11,
+    .end_time        = 0,
+    .step_size       = 1e-2
   };
   
   return parameters;
@@ -48,6 +49,12 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
           usage();
         } else {
           parameters.end_structure = argv[++i];
+        }
+      } else if (!strcmp(argv[i], "--start-time")) {
+        if (i == argc - 1) {
+          usage();
+        } else if (!sscanf(argv[++i], "%lf", &(parameters.start_time))) {
+          usage();
         }
       } else if (!strcmp(argv[i], "--end-time")) {
         if (i == argc - 1) {
@@ -109,6 +116,7 @@ void debug_parameters(SPECTRAL_PARAMS parameters) {
   printf("parameters.sequence\t\t%s\n",      parameters.sequence);
   printf("parameters.start_structure\t%s\n", parameters.start_structure == NULL ? "empty" : parameters.start_structure);
   printf("parameters.end_structure\t%s\n",   parameters.end_structure == NULL ? "mfe" : parameters.end_structure);
+  printf("parameters.start_time\t\t%.2e\n",  parameters.start_time);
   printf("parameters.end_time\t\t%.2e\n",    parameters.end_time);
   printf("parameters.step_size\t\t%.2e\n",   parameters.step_size);
   printf("parameters.lonely_bp\t\t%s\n",     parameters.lonely_bp ? "No" : "Yes");
