@@ -20,11 +20,17 @@ int main(int argc, char* argv[]) {
     gettimeofday(&fullStart, NULL);
     gettimeofday(&start, NULL);
   #endif
-    
-  SPECTRAL_PARAMS parameters;
-  parameters = parse_args(argc, argv);
   
-  int i, seq_length, from_index = -1, to_index = -1, empty_index = -1, num_structures = 0;
+  SPECTRAL_PARAMS parameters;
+  paramT*         vienna_params;
+  model_detailsT  vienna_details;
+  
+  set_model_details(&vienna_details);
+  parameters          = parse_args(argc, argv);
+  vienna_details.noLP = !parameters.lonely_bp;
+  vienna_params       = get_scaled_parameters(temperature, vienna_details);
+  
+  int i, seq_length, from_index = -1, to_index = -1, num_structures = 0;
   double step_counter;
   double* transition_matrix;
   EIGENSYSTEM eigensystem;
@@ -39,9 +45,9 @@ int main(int argc, char* argv[]) {
   }
   empty_str[i] = '\0';
   
-  (double)fold(sequence, mfe_str);
+  fold_par(sequence, mfe_str, vienna_params, 0, 0);
   
-  SOLUTION* all_structures = subopt(sequence, empty_str, 1000000, NULL);
+  SOLUTION* all_structures = subopt_par(sequence, empty_str, vienna_params, 1000000, 0, 0, NULL);
   while (all_structures[num_structures].structure != NULL) {
     num_structures++;
   }
@@ -67,10 +73,6 @@ int main(int argc, char* argv[]) {
         parameters.end_structure = all_structures[i].structure;
         to_index                 = i;
       }
-    }
-    
-    if (!strcmp(empty_str, all_structures[i].structure)) {
-      empty_index = i;
     }
   }
   

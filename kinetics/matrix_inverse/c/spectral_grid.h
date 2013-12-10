@@ -9,8 +9,8 @@ typedef struct {
   double *inverse_vectors;
 } EIGENSYSTEM;
 
-extern float fold(char*, char*);
-extern SOLUTION* subopt(char*, char*, int, FILE*);
+extern float fold_par(char*, char*, paramT*, int, int);
+extern SOLUTION* subopt_par(char*, char*, paramT*, int, int, int, FILE*);
 
 double* convert_structures_to_transition_matrix(SOLUTION*, int);
 EIGENSYSTEM convert_transition_matrix_to_eigenvectors(double*, int);

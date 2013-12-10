@@ -7,6 +7,7 @@ typedef struct {
   char* end_structure;
   double end_time;
   double step_size;
+  int lonely_bp;
 } SPECTRAL_PARAMS;
 
 #define   VRNA_GQUAD_MAX_STACK_SIZE     7
@@ -81,9 +82,9 @@ typedef struct{
 
 }  paramT;
 
-// extern void set_model_details(model_detailsT*);
-// extern paramT *get_scaled_parameters(double,model_detailsT);
-extern paramT *scale_parameters(void);
+extern void set_model_details(model_detailsT*);
+extern paramT *get_scaled_parameters(double,model_detailsT);
+// extern paramT *scale_parameters(void);
 
 SPECTRAL_PARAMS init_params();
 SPECTRAL_PARAMS parse_args(int, char*[]);

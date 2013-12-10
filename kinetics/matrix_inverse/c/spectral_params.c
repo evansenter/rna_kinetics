@@ -11,6 +11,7 @@ SPECTRAL_PARAMS init_params() {
     .sequence        = NULL,
     .start_structure = NULL,
     .end_structure   = NULL,
+    .lonely_bp       = 0,
     .end_time        = 1e-1,
     .step_size       = 1e-4
   };
@@ -66,7 +67,9 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
         } else if (!sscanf(argv[++i], "%lf", &temperature)) {
           usage();
         }
-      } else if (!strcmp(argv[i], "-v")) {
+      } else if (!strcmp(argv[i], "--lonely-bp")) {
+        parameters.lonely_bp = 1;
+      } else if (!strcmp(argv[i], "--verbose")) {
         parameters.verbose = 1;
       } else {
         usage();
@@ -108,6 +111,7 @@ void debug_parameters(SPECTRAL_PARAMS parameters) {
   printf("parameters.end_structure\t%s\n",   parameters.end_structure == NULL ? "mfe" : parameters.end_structure);
   printf("parameters.end_time\t\t%.2e\n",    parameters.end_time);
   printf("parameters.step_size\t\t%.2e\n",   parameters.step_size);
+  printf("parameters.lonely_bp\t\t%s\n",     parameters.lonely_bp ? "No" : "Yes");
   printf("temperature\t\t\t%.1f\n",          temperature);
 }
 
