@@ -9,6 +9,7 @@ typedef struct {
   double end_time;
   double step_size;
   int lonely_bp;
+  int use_min;
 } SPECTRAL_PARAMS;
 
 #define   VRNA_GQUAD_MAX_STACK_SIZE     7

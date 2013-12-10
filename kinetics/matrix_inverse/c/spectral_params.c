@@ -11,10 +11,11 @@ SPECTRAL_PARAMS init_params() {
     .sequence        = NULL,
     .start_structure = NULL,
     .end_structure   = NULL,
-    .lonely_bp       = 0,
     .start_time      = -11,
     .end_time        = 0,
-    .step_size       = 1e-2
+    .step_size       = 1e-1,
+    .lonely_bp       = 0,
+    .use_min         = 1
   };
   
   return parameters;
@@ -76,6 +77,8 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
         }
       } else if (!strcmp(argv[i], "--lonely-bp")) {
         parameters.lonely_bp = 1;
+      } else if (!strcmp(argv[i], "--no-min-transition")) {
+        parameters.use_min = 0;
       } else if (!strcmp(argv[i], "--verbose")) {
         parameters.verbose = 1;
       } else {
@@ -120,6 +123,7 @@ void debug_parameters(SPECTRAL_PARAMS parameters) {
   printf("parameters.end_time\t\t%.2e\n",    parameters.end_time);
   printf("parameters.step_size\t\t%.2e\n",   parameters.step_size);
   printf("parameters.lonely_bp\t\t%s\n",     parameters.lonely_bp ? "No" : "Yes");
+  printf("parameters.use_min\t\t%s\n",       parameters.use_min ? "MIN(1, exp(-(E(j) - E(i)) / RT))" : "exp(-(E(j) - E(i)) / RT)");
   printf("temperature\t\t\t%.1f\n",          temperature);
 }
 

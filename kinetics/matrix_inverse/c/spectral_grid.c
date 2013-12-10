@@ -13,6 +13,7 @@
 #define TIMING(start, stop, task) printf("Time in ms for %s: %.2f\n", task, (double)(((stop.tv_sec * 1000000 + stop.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)) / 1000.0));
 
 extern double temperature;
+SPECTRAL_PARAMS parameters;
   
 int main(int argc, char* argv[]) {
   #ifdef DEBUG
@@ -21,9 +22,8 @@ int main(int argc, char* argv[]) {
     gettimeofday(&start, NULL);
   #endif
   
-  SPECTRAL_PARAMS parameters;
-  paramT*         vienna_params;
-  model_detailsT  vienna_details;
+  paramT*        vienna_params;
+  model_detailsT vienna_details;
   
   set_model_details(&vienna_details);
   parameters          = parse_args(argc, argv);
@@ -155,7 +155,12 @@ double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int nu
     
     for (j = 0; j < num_structures; ++j) {
       if (i != j) {
-        transition_matrix[i + num_structures * j] = exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT);
+        if (parameters.use_min) {
+          transition_matrix[i + num_structures * j] = MIN(1, exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT));
+        } else {
+          transition_matrix[i + num_structures * j] = exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT);
+        }
+        
         col_sum += transition_matrix[i + num_structures * j];
         
         #ifdef INSANE_DEBUG
