@@ -3,6 +3,7 @@ kinetics/synthetic_seq_files
 .DS_Store
 *.pdf
 *.bin
+kinetics/spectral_decomposition/*.txt
 test*
 **/*.a
 **/*.so
