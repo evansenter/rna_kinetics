@@ -15,6 +15,7 @@ SPECTRAL_PARAMS init_params() {
     .end_time        = 0,
     .step_size       = 1e-1,
     .lonely_bp       = 0,
+    .energy_cap      = 1,
     .use_min         = 1
   };
   
@@ -33,53 +34,55 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
   
   for (i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
-      if (!strcmp(argv[i], "--seq")) {
+      if (!strcmp(argv[i], "-seq")) {
         if (i == argc - 1) {
           usage();
         } else {
           parameters.sequence = argv[++i];
         }
-      } else if (!strcmp(argv[i], "--from")) {
+      } else if (!strcmp(argv[i], "-from")) {
         if (i == argc - 1) {
           usage();
         } else {
           parameters.start_structure = argv[++i];
         }
-      } else if (!strcmp(argv[i], "--to")) {
+      } else if (!strcmp(argv[i], "-to")) {
         if (i == argc - 1) {
           usage();
         } else {
           parameters.end_structure = argv[++i];
         }
-      } else if (!strcmp(argv[i], "--start-time")) {
+      } else if (!strcmp(argv[i], "-start-time")) {
         if (i == argc - 1) {
           usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.start_time))) {
           usage();
         }
-      } else if (!strcmp(argv[i], "--end-time")) {
+      } else if (!strcmp(argv[i], "-end-time")) {
         if (i == argc - 1) {
           usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.end_time))) {
           usage();
         }
-      } else if (!strcmp(argv[i], "--step-size")) {
+      } else if (!strcmp(argv[i], "-step-size")) {
         if (i == argc - 1) {
           usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.step_size))) {
           usage();
         }
-      } else if (!strcmp(argv[i], "--temperature")) {
+      } else if (!strcmp(argv[i], "-temperature")) {
         if (i == argc - 1) {
           usage();
         } else if (!sscanf(argv[++i], "%lf", &temperature)) {
           usage();
         }
-      } else if (!strcmp(argv[i], "--lonely-bp")) {
+      } else if (!strcmp(argv[i], "-lonely-bp")) {
         parameters.lonely_bp = 1;
-      } else if (!strcmp(argv[i], "--no-min-transition")) {
+      } else if (!strcmp(argv[i], "-no-energy-cap")) {
+        parameters.energy_cap = 0;
+      } else if (!strcmp(argv[i], "-no-min-transition")) {
         parameters.use_min = 0;
-      } else if (!strcmp(argv[i], "--verbose")) {
+      } else if (!strcmp(argv[i], "-verbose")) {
         parameters.verbose = 1;
       } else {
         usage();
@@ -123,6 +126,7 @@ void debug_parameters(SPECTRAL_PARAMS parameters) {
   printf("parameters.end_time\t\t%.2e\n",    parameters.end_time);
   printf("parameters.step_size\t\t%.2e\n",   parameters.step_size);
   printf("parameters.lonely_bp\t\t%s\n",     parameters.lonely_bp ? "No" : "Yes");
+  printf("parameters.energy_cap\t\t%s\n",    parameters.energy_cap ? "Yes" : "No");
   printf("parameters.use_min\t\t%s\n",       parameters.use_min ? "MIN(1, exp(-(E(j) - E(i)) / RT))" : "exp(-(E(j) - E(i)) / RT)");
   printf("temperature\t\t\t%.1f\n",          temperature);
 }

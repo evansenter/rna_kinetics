@@ -9,6 +9,7 @@ typedef struct {
   double end_time;
   double step_size;
   int lonely_bp;
+  int energy_cap;
   int use_min;
 } SPECTRAL_PARAMS;
 
