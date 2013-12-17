@@ -1,3 +1,6 @@
+#ifndef SPECTRAL_PARAMS_H
+#define SPECTRAL_PARAMS_H
+
 #include "energy_const.h"
 
 typedef struct {
@@ -97,3 +100,5 @@ SPECTRAL_PARAMS parse_args(int, char*[]);
 int spectral_error_handling(SPECTRAL_PARAMS);
 void debug_parameters(SPECTRAL_PARAMS);
 void usage();
+
+#endif

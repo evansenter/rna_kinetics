@@ -39,4 +39,4 @@ clean:
 
 install: RNAmfpt
 	cp RNAmfpt $(BINDIR)
-	cp shared/libMFPT.a $(LIBDIR)
+	cp ../shared/libMFPT.a $(LIBDIR)

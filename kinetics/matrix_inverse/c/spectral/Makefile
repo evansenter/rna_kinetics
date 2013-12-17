@@ -18,11 +18,14 @@ endif
 
 all: RNAspectral
 	
-RNAspectral: spectral_grid.o spectral_params.o
-	$(CC) spectral_grid.o spectral_params.o -lRNA $(LDFLAGS) RNAspectral
+RNAspectral: spectral_grid.o spectral_params.o spectral_functions.o
+	$(CC) spectral_grid.o spectral_params.o spectral_functions.o -lRNA $(LDFLAGS) RNAspectral
 	
-spectral_grid.o: spectral_grid.c spectral_grid.h spectral_params.h ../shared/constants.h
+spectral_grid.o: spectral_grid.c spectral_grid.h spectral_functions.h spectral_params.h ../shared/constants.h
 	$(CC) $(CCFLAGS) spectral_grid.c
+	
+spectral_functions.o: spectral_functions.c spectral_functions.h spectral_params.h spectral_grid.h
+	$(CC) $(CCFLAGS) spectral_functions.c
 	
 spectral_params.o: spectral_params.c spectral_params.h energy_const.h
 	$(CC) $(CCFLAGS) spectral_params.c
