@@ -132,6 +132,14 @@ MFPT_PARAMETERS parse_mfpt_args(int argc, char* argv[]) {
 int mfpt_error_handling(MFPT_PARAMETERS parameters) {
   int error = 0;
   
+  if (parameters.distributed_epsilon < 1e-15) {
+    parameters.distributed_epsilon = 0;
+  }
+  
+  if (parameters.additive_epsilon < 1e-15) {
+    parameters.additive_epsilon = 0;
+  }
+  
   if (parameters.start_state == parameters.end_state && parameters.start_state >= 0) {
     fprintf(stderr, "Error: If the -A and -Z flags are identical the MFPT is 0!\n");
     error++;
@@ -195,6 +203,10 @@ void debug_mfpt_parameters(MFPT_PARAMETERS parameters) {
   
   sprintf(buffer, "%d", parameters.sequence_length);
   printf("parameters.sequence_length\t\t%s\n", parameters.sequence_length ? buffer : "N/A");
+  memset(buffer, ' ', 128 * sizeof(char));
+  
+  sprintf(buffer, "%d", parameters.bp_dist);
+  printf("parameters.bp_dist\t\t\t%s\n", parameters.bp_dist ? buffer : "N/A");
   memset(buffer, ' ', 128 * sizeof(char));
   
   sprintf(buffer, "%.2e", parameters.additive_epsilon);

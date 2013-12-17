@@ -1,7 +1,7 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 
-typedef struct MFPT_PARAMETERS {
+typedef struct {
   int start_state;
   int end_state;
   int sequence_length;
