@@ -20,7 +20,7 @@ all: RNAmfpt
 
 RNAmfpt: rna_mfpt.o mfpt_params.o energy_grid_mfpt.o mfpt_parser.o
 	$(CC) rna_mfpt.o mfpt_params.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
-	ar cr ../shared/libMFPT.a mfpt_parser.o energy_grid_mfpt.o mfpt_params.o
+	ar cr ../shared/libmfpt.a mfpt_parser.o energy_grid_mfpt.o mfpt_params.o
 	
 rna_mfpt.o: rna_mfpt.c mfpt_parser.h energy_grid_mfpt.h ../shared/constants.h mfpt_params.h
 	$(CC) $(CCFLAGS) rna_mfpt.c
@@ -35,9 +35,9 @@ energy_grid_mfpt.o: energy_grid_mfpt.c energy_grid_mfpt.h ../shared/constants.h 
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
 
 clean:
-	rm -f *.o ../shared/*.a RNAmfpt
+	rm -f *.o ../shared/libmfpt.a RNAmfpt
 
 install: RNAmfpt
 	cp RNAmfpt $(BINDIR)
-	cp ../shared/libMFPT.a $(LIBDIR)
+	cp ../shared/libmfpt.a $(LIBDIR)
 	
