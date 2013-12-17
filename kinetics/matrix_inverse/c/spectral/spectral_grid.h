@@ -18,3 +18,4 @@ void invert_matrix(EIGENSYSTEM, int);
 double probability_at_time(EIGENSYSTEM, double, int, int, int);
 void print_array(char*, double*, int);
 void print_matrix(char*, double*, int);
+int populate_arrays(char*, int**, int**, double**);

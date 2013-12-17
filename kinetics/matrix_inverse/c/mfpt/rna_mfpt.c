@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "constants.h"
+#include "../shared/constants.h"
 #include "params.h"
-#include "rna_mfpt.h"
+#include "mfpt_parser.h"
 #include "energy_grid_mfpt.h"
 
 int main(int argc, char* argv[]) {

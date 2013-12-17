@@ -6,7 +6,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_linalg.h>
-#include "constants.h"
+#include "../shared/constants.h"
 #include "spectral_params.h"
 #include "spectral_grid.h"
 
@@ -34,6 +34,10 @@ int main(int argc, char* argv[]) {
   double mfe_energy, step_counter;
   double* transition_matrix;
   EIGENSYSTEM eigensystem;
+  
+  // int* k;
+  // int* l;
+  // double* p;
   
   char* sequence  = parameters.sequence;
   seq_length      = strlen(sequence);
@@ -99,7 +103,53 @@ int main(int argc, char* argv[]) {
     gettimeofday(&start, NULL);
   #endif
   
-  transition_matrix  = convert_structures_to_transition_matrix(all_structures, num_structures);
+  if (parameters.energy_grid_file != NULL) {
+//     // int line_count = populate_arrays(parameters.energy_grid_file, &k, &l, &p);
+//     int j;
+//     int line_count = 35;
+//     int k[]        = { 0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 9 };
+//     int l[]        = { 9, 8, 10, 7, 11, 6, 8, 12, 5, 7, 9, 11, 13, 4, 6, 8, 10, 12, 14, 3, 5, 7, 9, 11, 13, 15, 2, 4, 6, 8, 10, 12, 1, 3, 0 };
+//     double p[]     = { 0.00003825, 0.00000004, 0.00000007, 0.00000124, 0.00000004, 0.00001218, 0.00000001, 0.00000024, 0.00008602, 0.00000015, 0.00000010, 0.00000003, 
+// 0.00000089, 0.00060800, 0.00000089, 0.00000090, 0.00000062, 0.00000019, 0.00000419, 0.00428014, 0.00000422, 0.00000410, 0.00000403, 0.00000274, 0.00000052, 0.00000027, 0.02995381, 0.00000922, 0.00001092, 0.00000789, 0.00001092, 0.00000298, 0.20470005, 0.00000001, 0.76025411 };
+//     
+//     if (parameters.verbose) {
+//       printf("line_count:\t%d\n", line_count);
+//       printf("file:\n");
+//       for (i = 0; i < line_count; ++i) {
+//         printf("%d\t%d\t%.8f\n", k[i], l[i], p[i]);
+//       }
+//     }
+//     
+//     num_structures = line_count;
+//     
+//     double col_sum;
+//     transition_matrix = malloc(num_structures * num_structures * sizeof(double));
+//   
+//     for (i = 0; i < num_structures; ++i) {
+//       col_sum = 0;
+//     
+//       for (j = 0; j < num_structures; ++j) {
+//         if (i != j) {
+//           transition_matrix[i + num_structures * j] = MIN(1., p[j] / p[i]);
+//           col_sum                                  += transition_matrix[i + num_structures * j];
+//         
+//           #ifdef INSANE_DEBUG
+//             printf("%d\t%d\t%.4e\n", i, j, transition_matrix[i + num_structures * j]);
+//           #endif
+//         }
+//       }
+//     
+//       #ifdef INSANE_DEBUG
+//         printf("%d col_sum:\t%.4e\n\n", i, col_sum);
+//       #endif
+//     
+//       transition_matrix[i * num_structures + i] = -col_sum;
+//     }
+//     
+//     print_matrix("transition_matrix", transition_matrix, num_structures);
+  } else {
+    transition_matrix = convert_structures_to_transition_matrix(all_structures, num_structures);
+  }
   
   #ifdef INSANE_DEBUG
     print_matrix("transition_matrix", transition_matrix, num_structures);
@@ -113,28 +163,34 @@ int main(int argc, char* argv[]) {
   
   eigensystem = convert_transition_matrix_to_eigenvectors(transition_matrix, num_structures);
   
-  #ifdef DEBUG
-    gettimeofday(&stop, NULL);
-    TIMING(start, stop, "convert_transition_matrix_to_eigenvectors")
-    gettimeofday(&start, NULL);
-  #endif
-  
-  invert_matrix(eigensystem, num_structures);
-  
-  #ifdef DEBUG
-    gettimeofday(&stop, NULL);
-    TIMING(start, stop, "invert_matrix")
-    gettimeofday(&start, NULL);
-  #endif
-  
-  #ifdef INSANE_DEBUG
-    print_array("eigensystem.values", eigensystem.values, num_structures);
-    print_matrix("eigensystem.vectors", eigensystem.vectors, num_structures);
-    print_matrix("eigensystem.inverse_vectors", eigensystem.inverse_vectors, num_structures);
-  #endif
-  
-  for (step_counter = parameters.start_time; step_counter <= parameters.end_time; step_counter += parameters.step_size) {
-    printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
+  if (parameters.eigen_only) {
+    for (i = 0; i < seq_length; ++i) {
+      printf("%+.8f\n", eigensystem.values[i]);
+    }
+  } else {
+    #ifdef DEBUG
+      gettimeofday(&stop, NULL);
+      TIMING(start, stop, "convert_transition_matrix_to_eigenvectors")
+      gettimeofday(&start, NULL);
+    #endif
+
+    invert_matrix(eigensystem, num_structures);
+
+    #ifdef DEBUG
+      gettimeofday(&stop, NULL);
+      TIMING(start, stop, "invert_matrix")
+      gettimeofday(&start, NULL);
+    #endif
+
+    #ifdef INSANE_DEBUG
+      print_array("eigensystem.values", eigensystem.values, num_structures);
+      print_matrix("eigensystem.vectors", eigensystem.vectors, num_structures);
+      print_matrix("eigensystem.inverse_vectors", eigensystem.inverse_vectors, num_structures);
+    #endif
+
+    for (step_counter = parameters.start_time; step_counter <= parameters.end_time; step_counter += parameters.step_size) {
+      printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
+    }
   }
   
   #ifdef DEBUG
@@ -285,4 +341,43 @@ void print_matrix(char* title, double* matrix, int length) {
   }
 
   printf("\n");
+}
+
+int populate_arrays(char* file_path, int** k, int** l, double** p) {
+  FILE *file = fopen(file_path, "r");
+  int i, c, line_count = 0;
+  char *token;
+  char line[1024];
+  
+  if (file == NULL) {
+    fprintf(stderr, "File not found.\n");
+    fclose(file);
+    return -1;
+  }
+  
+  while ((c = fgetc(file)) != EOF) {
+    if (c == '\n') {
+      line_count++;
+    }
+  }
+  
+  *k = malloc(line_count * sizeof(int));
+  *l = malloc(line_count * sizeof(int));
+  *p = malloc(line_count * sizeof(double));
+  
+  rewind(file);
+  
+  while (fgets(line, 1024, file)) {
+    token = strtok(line, ",");
+    (*k)[i]  = atoi(token);
+    token = strtok(NULL, ",");
+    (*l)[i]  = atoi(token);
+    token = strtok(NULL, ",");
+    (*p)[i]  = atof(token);
+    
+    i++;
+  }
+  
+  fclose(file);
+  return line_count;
 }

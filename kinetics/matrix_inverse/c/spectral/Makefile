@@ -16,35 +16,19 @@ else
 	CCFLAGS += -O3
 endif
 
-all: RNAmfpt RNAspectral
-
-RNAmfpt: rna_mfpt.o params.o energy_grid_mfpt.o
-	$(CC) rna_mfpt.o params.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
-	ar cr shared/libMFPT.a energy_grid_mfpt.o params.o
-	
-rna_mfpt.o: rna_mfpt.c rna_mfpt.h energy_grid_mfpt.h constants.h params.h
-	$(CC) $(CCFLAGS) rna_mfpt.c
-	
-params.o: params.c params.h
-	$(CC) $(CCFLAGS) params.c
-	
-energy_grid_mfpt.o: energy_grid_mfpt.c energy_grid_mfpt.h constants.h params.h
-	$(CC) $(CCFLAGS) energy_grid_mfpt.c
+all: RNAspectral
 	
 RNAspectral: spectral_grid.o spectral_params.o
 	$(CC) spectral_grid.o spectral_params.o -lRNA $(LDFLAGS) RNAspectral
 	
-spectral_grid.o: spectral_grid.c spectral_grid.h spectral_params.h constants.h
+spectral_grid.o: spectral_grid.c spectral_grid.h spectral_params.h ../shared/constants.h
 	$(CC) $(CCFLAGS) spectral_grid.c
 	
-spectral_params.o: spectral_params.c spectral_params.h
+spectral_params.o: spectral_params.c spectral_params.h energy_const.h
 	$(CC) $(CCFLAGS) spectral_params.c
 
 clean:
-	rm -f *.o shared/*.a RNAmfpt RNAspectral
-
-install:
-	cp RNAspectral $(BINDIR)
-	cp RNAmfpt $(BINDIR)
-	cp shared/libMFPT.a $(LIBDIR)
+	rm -f *.o RNAspectral
 	
+install: RNAspectral
+	cp RNAspectral $(BINDIR)
