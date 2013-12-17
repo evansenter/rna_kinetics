@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
   model_detailsT vienna_details;
   
   set_model_details(&vienna_details);
-  parameters          = parse_args(argc, argv);
+  parameters          = parse_spectral_args(argc, argv);
   vienna_details.noLP = !parameters.lonely_bp;
   vienna_params       = get_scaled_parameters(temperature, vienna_details);
   

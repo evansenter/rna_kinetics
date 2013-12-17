@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "../shared/constants.h"
-#include "params.h"
+#include "mfpt_params.h"
 #include "mfpt_parser.h"
 #include "energy_grid_mfpt.h"
 
@@ -13,9 +13,9 @@ int main(int argc, char* argv[]) {
   double mfpt;
   double* p;
   double** transition_matrix;
-  GlobalParameters parameters;
+  MFPT_PARAMETERS parameters;
   
-  parameters = parse_args(argc, argv);
+  parameters = parse_mfpt_args(argc, argv);
   line_count = count_lines(argv[argc - 1]);
   
   if (!line_count) {
@@ -115,7 +115,7 @@ int count_lines(char* file_path) {
   return line_count;
 }
 
-void populate_arrays(char* file_path, int* k, int* l, double* p, GlobalParameters parameters) {
+void populate_arrays(char* file_path, int* k, int* l, double* p, MFPT_PARAMETERS parameters) {
   int i = 0;
   FILE *file = fopen(file_path, "r");
   char *token;
@@ -131,7 +131,7 @@ void populate_arrays(char* file_path, int* k, int* l, double* p, GlobalParameter
     
     if (!parameters.energy_based && (p[i] < 0 || p[i] > 1)) {
       fprintf(stderr, "Error: line number %d (0-indexed) in the input doesn't satisfy 0 <= probability (%+1.2f) <= 1. Did you forget the -E flag?\n\n", i, p[i]);
-      usage();
+      mfpt_usage();
     }
     
     i++;

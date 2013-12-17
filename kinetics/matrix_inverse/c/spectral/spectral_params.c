@@ -25,12 +25,12 @@ SPECTRAL_PARAMS init_spectral_params() {
   return parameters;
 }
 
-SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
+SPECTRAL_PARAMS parse_spectral_args(int argc, char* argv[]) {
   int i;
   SPECTRAL_PARAMS parameters;
   
   if (argc < 1) {
-    usage();
+    spectral_usage();
   }
   
   parameters = init_spectral_params();
@@ -39,51 +39,51 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
     if (argv[i][0] == '-') {
       if (!strcmp(argv[i], "-seq")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else {
           parameters.sequence = argv[++i];
         }
       } else if (!strcmp(argv[i], "-from")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else {
           parameters.start_structure = argv[++i];
         }
       } else if (!strcmp(argv[i], "-to")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else {
           parameters.end_structure = argv[++i];
         }
       } else if (!strcmp(argv[i], "-energy_grid_file")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else {
           parameters.energy_grid_file = argv[++i];
         }
       } else if (!strcmp(argv[i], "-start_time")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.start_time))) {
-          usage();
+          spectral_usage();
         }
       } else if (!strcmp(argv[i], "-end_time")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.end_time))) {
-          usage();
+          spectral_usage();
         }
       } else if (!strcmp(argv[i], "-step_size")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.step_size))) {
-          usage();
+          spectral_usage();
         }
       } else if (!strcmp(argv[i], "-temperature")) {
         if (i == argc - 1) {
-          usage();
+          spectral_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.temperature))) {
-          usage();
+          spectral_usage();
         }
         temperature = parameters.temperature;
       } else if (!strcmp(argv[i], "-lonely_bp")) {
@@ -97,17 +97,17 @@ SPECTRAL_PARAMS parse_args(int argc, char* argv[]) {
       } else if (!strcmp(argv[i], "-verbose")) {
         parameters.verbose = 1;
       } else {
-        usage();
+        spectral_usage();
       }
     }
   }
   
   if (parameters.verbose) {
-    debug_parameters(parameters);
+    debug_spectral_parameters(parameters);
   }
     
   if (spectral_error_handling(parameters)) {
-    usage();
+    spectral_usage();
   }
   
   return parameters;
@@ -130,7 +130,7 @@ int spectral_error_handling(SPECTRAL_PARAMS parameters) {
   return error;
 }
 
-void debug_parameters(SPECTRAL_PARAMS parameters) {
+void debug_spectral_parameters(SPECTRAL_PARAMS parameters) {
   printf("parameters.sequence\t\t%s\n",       parameters.sequence);
   printf("parameters.start_structure\t%s\n",  parameters.start_structure == NULL ? "empty" : parameters.start_structure);
   printf("parameters.end_structure\t%s\n",    parameters.end_structure == NULL ? "mfe" : parameters.end_structure);
@@ -146,7 +146,7 @@ void debug_parameters(SPECTRAL_PARAMS parameters) {
   printf("temperature\t\t\t%.1f\n",           temperature);
 }
 
-void usage() {
+void spectral_usage() {
   fprintf(stderr, "RNAspectral [options]\n\n");
     
   exit(0);

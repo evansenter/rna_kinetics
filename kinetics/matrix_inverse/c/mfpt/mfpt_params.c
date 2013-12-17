@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "params.h"
+#include "mfpt_params.h"
 
-GlobalParameters init_params() {
-  GlobalParameters parameters = {
+MFPT_PARAMETERS init_mfpt_params() {
+  MFPT_PARAMETERS parameters = {
     .start_state             = -1,
     .end_state               = -1,
     .sequence_length         = 0,
@@ -22,114 +22,114 @@ GlobalParameters init_params() {
   return parameters;
 }
 
-GlobalParameters parse_args(int argc, char* argv[]) {
+MFPT_PARAMETERS parse_mfpt_args(int argc, char* argv[]) {
   int i;
-  GlobalParameters parameters;
+  MFPT_PARAMETERS parameters;
   
   if (argc < 2) {
-    usage();
+    mfpt_usage();
   }
   
-  parameters = init_params();
+  parameters = init_mfpt_params();
   
   for (i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
       if (strcmp(argv[i], "-E") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.energy_based = 1;
       } else if (strcmp(argv[i], "-T") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.transition_matrix_input = 1;
       } else if (strcmp(argv[i], "-P") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.pseudoinverse = 1;
       } else if (strcmp(argv[i], "-X") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.single_bp_moves_only = 1;
       } else if (strcmp(argv[i], "-H") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.hastings = 1;
       } else if (strcmp(argv[i], "-V") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         }
         parameters.verbose = 1;
       } else if (strcmp(argv[i], "-A") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%d", &(parameters.start_state))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.start_state < 0) {
-          usage();
+          mfpt_usage();
         }
       } else if (strcmp(argv[i], "-Z") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%d", &(parameters.end_state))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.end_state < 0) {
-          usage();
+          mfpt_usage();
         }
       } else if (strcmp(argv[i], "-N") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%d", &(parameters.sequence_length))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.sequence_length <= 0) {
-          usage();
+          mfpt_usage();
         }
       } else if (strcmp(argv[i], "-D") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%d", &(parameters.bp_dist))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.bp_dist <= 0) {
-          usage();
+          mfpt_usage();
         }
       } else if (strcmp(argv[i], "-O") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.additive_epsilon))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.additive_epsilon <= 0) {
-          usage();
+          mfpt_usage();
         }
       } else if (strcmp(argv[i], "-Q") == 0) {
         if (i == argc - 1) {
-          usage();
+          mfpt_usage();
         } else if (!sscanf(argv[++i], "%lf", &(parameters.distributed_epsilon))) {
-          usage();
+          mfpt_usage();
         } else if (parameters.distributed_epsilon <= 0) {
-          usage();
+          mfpt_usage();
         }
       } else {
-        usage();
+        mfpt_usage();
       }
     }
   }
   
   if (parameters.verbose) {
-    debug_parameters(parameters);
+    debug_mfpt_parameters(parameters);
   }
     
-  if (error_handling(parameters)) {
-    usage();
+  if (mfpt_error_handling(parameters)) {
+    mfpt_usage();
   }
   
   return parameters;
 }
 
-int error_handling(GlobalParameters parameters) {
+int mfpt_error_handling(MFPT_PARAMETERS parameters) {
   int error = 0;
   
   if (parameters.start_state == parameters.end_state && parameters.start_state >= 0) {
@@ -184,7 +184,7 @@ int error_handling(GlobalParameters parameters) {
   return error;
 }
 
-void debug_parameters(GlobalParameters parameters) {
+void debug_mfpt_parameters(MFPT_PARAMETERS parameters) {
   char buffer[128];
   
   printf("parameters.energy_based\t\t\t%s\n",        parameters.energy_based            ? "Yes" : "No");
@@ -214,7 +214,7 @@ void debug_parameters(GlobalParameters parameters) {
   memset(buffer, ' ', 128 * sizeof(char));
 }
 
-void usage() {
+void mfpt_usage() {
   fprintf(stderr, "RNAmfpt [options] input_csv\n\n");
     
   fprintf(stderr, "where input_csv is a CSV file (with *no* header) of the format:\n");

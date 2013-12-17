@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "params.h"
+#include "mfpt_params.h"
 
 int count_lines(char* file_path) {
   FILE *file = fopen(file_path, "r");
@@ -25,7 +25,7 @@ int count_lines(char* file_path) {
   return line_count;
 }
 
-void populate_arrays(char* file_path, int* k, int* l, double* p, GlobalParameters parameters) {
+void populate_arrays(char* file_path, int* k, int* l, double* p, MFPT_PARAMETERS parameters) {
   int i = 0;
   FILE *file = fopen(file_path, "r");
   char *token;
@@ -41,7 +41,7 @@ void populate_arrays(char* file_path, int* k, int* l, double* p, GlobalParameter
     
     if (!parameters.energy_based && (p[i] < 0 || p[i] > 1)) {
       fprintf(stderr, "Error: line number %d (0-indexed) in the input doesn't satisfy 0 <= probability (%+1.2f) <= 1. Did you forget the -E flag?\n\n", i, p[i]);
-      usage();
+      mfpt_usage();
     }
     
     i++;

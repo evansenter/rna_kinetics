@@ -1,7 +1,7 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 
-typedef struct GlobalParameters {
+typedef struct MFPT_PARAMETERS {
   int start_state;
   int end_state;
   int sequence_length;
@@ -14,12 +14,12 @@ typedef struct GlobalParameters {
   short verbose;
   double additive_epsilon;
   double distributed_epsilon;
-} GlobalParameters;
+} MFPT_PARAMETERS;
 
-GlobalParameters init_params();
-GlobalParameters parse_args(int, char*[]);
-int error_handling(GlobalParameters);
-void debug_parameters(GlobalParameters);
-void usage();
+MFPT_PARAMETERS init_mfpt_params();
+MFPT_PARAMETERS parse_mfpt_args(int, char*[]);
+int mfpt_error_handling(MFPT_PARAMETERS);
+void debug_mfpt_parameters(MFPT_PARAMETERS);
+void mfpt_usage();
 
 #endif

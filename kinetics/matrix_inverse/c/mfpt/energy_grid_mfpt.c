@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "../shared/constants.h"
-#include "params.h"
+#include "mfpt_params.h"
 #include "energy_grid_mfpt.h"
 
 #ifdef __cplusplus
@@ -17,7 +17,7 @@
   extern int dgels_(char *t, int *m, int *n, int *nrhs, double *a, int *lda, double *b, int *ldb, double *work, int *lwork, int *info);
 #endif
 
-double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, int* length, GlobalParameters parameters) {
+double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, int* length, MFPT_PARAMETERS parameters) {
   int i, j, m, bp_distance, input_data_index, pointer = 0, distance_from_start = -1, distance_from_end = -1, validPositions = 0;
   int* old_k;
   int* old_l;
@@ -190,7 +190,7 @@ double** convert_energy_grid_to_transition_matrix(int** k, int** l, double** p, 
   return transition_probabilities;
 }
 
-double compute_mfpt(int* k, int* l, double **transition_probabilities, int length, GlobalParameters parameters) {
+double compute_mfpt(int* k, int* l, double **transition_probabilities, int length, MFPT_PARAMETERS parameters) {
   int i, j, x, y, start_index, end_index, inversion_matrix_row_length = length - 1;
   double mfpt_from_start;
   

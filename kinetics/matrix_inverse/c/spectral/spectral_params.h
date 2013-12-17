@@ -93,12 +93,11 @@ typedef struct{
 
 extern void set_model_details(model_detailsT*);
 extern paramT *get_scaled_parameters(double,model_detailsT);
-// extern paramT *scale_parameters(void);
 
 SPECTRAL_PARAMS init_spectral_params();
-SPECTRAL_PARAMS parse_args(int, char*[]);
+SPECTRAL_PARAMS parse_spectral_args(int, char*[]);
 int spectral_error_handling(SPECTRAL_PARAMS);
-void debug_parameters(SPECTRAL_PARAMS);
-void usage();
+void debug_spectral_parameters(SPECTRAL_PARAMS);
+void spectral_usage();
 
 #endif

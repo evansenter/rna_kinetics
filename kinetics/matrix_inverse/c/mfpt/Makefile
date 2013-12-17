@@ -18,20 +18,20 @@ endif
 
 all: RNAmfpt
 
-RNAmfpt: rna_mfpt.o params.o energy_grid_mfpt.o mfpt_parser.o
-	$(CC) rna_mfpt.o params.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
-	ar cr ../shared/libMFPT.a mfpt_parser.o energy_grid_mfpt.o params.o
+RNAmfpt: rna_mfpt.o mfpt_params.o energy_grid_mfpt.o mfpt_parser.o
+	$(CC) rna_mfpt.o mfpt_params.o energy_grid_mfpt.o $(LDFLAGS) RNAmfpt
+	ar cr ../shared/libMFPT.a mfpt_parser.o energy_grid_mfpt.o mfpt_params.o
 	
-rna_mfpt.o: rna_mfpt.c mfpt_parser.h energy_grid_mfpt.h ../shared/constants.h params.h
+rna_mfpt.o: rna_mfpt.c mfpt_parser.h energy_grid_mfpt.h ../shared/constants.h mfpt_params.h
 	$(CC) $(CCFLAGS) rna_mfpt.c
 
 mfpt_parser.o: mfpt_parser.c mfpt_parser.h
 	$(CC) $(CCFLAGS) mfpt_parser.c
 	
-params.o: params.c params.h
-	$(CC) $(CCFLAGS) params.c
+mfpt_params.o: mfpt_params.c mfpt_params.h
+	$(CC) $(CCFLAGS) mfpt_params.c
 	
-energy_grid_mfpt.o: energy_grid_mfpt.c energy_grid_mfpt.h ../shared/constants.h params.h
+energy_grid_mfpt.o: energy_grid_mfpt.c energy_grid_mfpt.h ../shared/constants.h mfpt_params.h
 	$(CC) $(CCFLAGS) energy_grid_mfpt.c
 
 clean:
@@ -40,3 +40,4 @@ clean:
 install: RNAmfpt
 	cp RNAmfpt $(BINDIR)
 	cp ../shared/libMFPT.a $(LIBDIR)
+	

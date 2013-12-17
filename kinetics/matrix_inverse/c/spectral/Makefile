@@ -20,6 +20,7 @@ all: RNAspectral
 	
 RNAspectral: spectral_grid.o spectral_params.o spectral_functions.o
 	$(CC) spectral_grid.o spectral_params.o spectral_functions.o -lRNA $(LDFLAGS) RNAspectral
+	ar cr ../shared/libspectral.a spectral_functions.o spectral_params.o
 	
 spectral_grid.o: spectral_grid.c spectral_grid.h spectral_functions.h spectral_params.h ../shared/constants.h
 	$(CC) $(CCFLAGS) spectral_grid.c
@@ -35,3 +36,5 @@ clean:
 	
 install: RNAspectral
 	cp RNAspectral $(BINDIR)
+	cp ../shared/libspectral.a $(LIBDIR)
+		
