@@ -10,9 +10,7 @@
 #include "spectral_grid.h"
 #include "spectral_functions.h"
 
-extern SPECTRAL_PARAMS parameters;
-
-double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int num_structures) {  
+double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int num_structures, int use_min) {  
   int i, j;
   double col_sum;
   double* transition_matrix = malloc(num_structures * num_structures * sizeof(double));
@@ -22,7 +20,7 @@ double* convert_structures_to_transition_matrix(SOLUTION* all_structures, int nu
     
     for (j = 0; j < num_structures; ++j) {
       if (i != j) {
-        if (parameters.use_min) {
+        if (use_min) {
           transition_matrix[i + num_structures * j] = MIN(1, exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT));
         } else {
           transition_matrix[i + num_structures * j] = exp(-((double)all_structures[j].energy - (double)all_structures[i].energy) / RT);
@@ -150,6 +148,12 @@ void print_matrix(char* title, double* matrix, int length) {
   }
 
   printf("\n");
+}
+
+void free_eigensystem(EIGENSYSTEM eigensystem) {
+  free(eigensystem.values);
+  free(eigensystem.vectors);
+  free(eigensystem.inverse_vectors);
 }
 
 int populate_arrays(char* file_path, int** k, int** l, double** p) {

@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
 //     
 //     print_matrix("transition_matrix", transition_matrix, num_structures);
   } else {
-    transition_matrix = convert_structures_to_transition_matrix(all_structures, num_structures);
+    transition_matrix = convert_structures_to_transition_matrix(all_structures, num_structures, parameters.use_min);
   }
   
   #ifdef INSANE_DEBUG
@@ -192,6 +192,8 @@ int main(int argc, char* argv[]) {
       printf("%f\t%+.8f\n", step_counter, probability_at_time(eigensystem, pow(10, step_counter), from_index, to_index, num_structures));
     }
   }
+  
+  free_eigensystem(eigensystem);
   
   #ifdef DEBUG
     gettimeofday(&stop, NULL);
